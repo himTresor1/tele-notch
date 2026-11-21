@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>TeleNotch</string>
+	<key>CFBundleExecutable</key>
+	<string>TeleNotch</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>app.telenotch.TeleNotch</string>
+	<key>CFBundleName</key>
+	<string>TeleNotch</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.0</string>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>TeleNotch transcribes what other people say in your meeting (the audio your Mac plays) so it can catch you up.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>MIT License</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TeleNotch transcribes what you say so it can answer as you when you press Answer.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>TeleNotch turns meeting audio into text on your Mac.</string>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUPublicEDKey</key>
+	<string>I3FHTAcReeGnCJ5arcqutb86zQxYG2UZTM5UfpIX76Y=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+</dict>
+</plist>
