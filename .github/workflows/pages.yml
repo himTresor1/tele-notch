@@ -1,6 +1,6 @@
 # Publishes the landing page (site/) to GitHub Pages whenever it changes on main.
 # Release notes on the page come live from GitHub Releases, so releasing needs no site change.
-# One-time setup: repo Settings → Pages → Source: "GitHub Actions".
+# One-time setup (done for himTresor1/tele-notch): repo Settings → Pages → Source: "GitHub Actions".
 name: Landing page
 on:
   push:
