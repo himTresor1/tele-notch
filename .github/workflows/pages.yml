@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read     # lets the deploy step find the artifact the upload step made
   pages: write
   id-token: write
 concurrency:
