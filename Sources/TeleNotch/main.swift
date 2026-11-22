@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await SelfTest.run(args: CommandLine.arguments, copilot: copilot) }
             return
         }
+        quitOtherCopies()
         installEditMenu()
         MoveToApplications.offerIfNeeded()
         Updates.shared.start()
@@ -63,6 +64,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Menu-bar-only apps have no menu bar of their own, so ⌘V/⌘C/⌘X/⌘A/⌘Z would do nothing in text fields.
     /// An (invisible) main menu with the standard Edit items makes those shortcuts work.
+    /// Only one TeleNotch at a time: two copies (say, one in Applications and one in Downloads) would each draw
+    /// a notch panel in the same spot and fight over the shortcuts, so hiding one leaves the other showing.
+    /// The copy just opened wins, which is what you want after an update or a move to Applications.
+    private func quitOtherCopies() {
+        guard let id = Bundle.main.bundleIdentifier else { return }
+        let me = ProcessInfo.processInfo.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)
+            .filter { $0.processIdentifier != me }
+        guard !others.isEmpty else { return }
+        others.forEach { $0.terminate() }
+        // Wait briefly so their shortcuts are free before we register ours.
+        let deadline = Date().addingTimeInterval(2)
+        while others.contains(where: { !$0.isTerminated }) && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        others.filter { !$0.isTerminated }.forEach { $0.forceTerminate() }
+    }
+
     private func installEditMenu() {
         let main = NSMenu()
         let appItem = NSMenuItem(); main.addItem(appItem)
