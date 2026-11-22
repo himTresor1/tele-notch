@@ -1,5 +1,6 @@
 #!/bin/zsh
-# Publishes a TeleNotch release on GitHub: the app, its update feed, and release notes.
+# Publishes a TeleNotch release on GitHub: the disk image people download, the zip + feed for auto-updates,
+# and release notes.
 #
 #   1. Bump CFBundleShortVersionString (e.g. 0.3.0) and CFBundleVersion (e.g. 3) in Info.plist.
 #   2. Write the notes in release-notes/<version>.md (Markdown; shown on the landing page and in the update window).
@@ -41,6 +42,8 @@ vendor/sparkle-tools/bin/generate_appcast --account telenotch --embed-release-no
   --link "https://${REPO%%/*}.github.io/${REPO#*/}/" \
   -o release/appcast.xml release
 rm release/TeleNotch.md
+# The disk image is what people download first (drag-to-Applications window); the zip is for auto-updates.
+./scripts/make-dmg.sh "$ID"
 grep -q "<sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>" release/appcast.xml \
   || { echo "appcast.xml doesn't list $VERSION"; exit 1; }
 sig=$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' release/appcast.xml | head -1)
@@ -48,11 +51,11 @@ vendor/sparkle-tools/bin/sign_update --account telenotch --verify release/TeleNo
   && echo "→ Update signature verified"
 
 if (( DRY )); then
-  echo "Dry run done: release/TeleNotch.zip and release/appcast.xml (nothing published)."
+  echo "Dry run done: release/TeleNotch.dmg, release/TeleNotch.zip and release/appcast.xml (nothing published)."
   exit 0
 fi
 
 echo "→ Publishing $TAG to github.com/$REPO"
-gh release create "$TAG" release/TeleNotch.zip release/appcast.xml \
+gh release create "$TAG" release/TeleNotch.dmg release/TeleNotch.zip release/appcast.xml \
   --repo "$REPO" --title "TeleNotch $VERSION" --notes-file "$NOTES"
-echo "Done. Download: https://github.com/$REPO/releases/latest/download/TeleNotch.zip"
+echo "Done. Download: https://github.com/$REPO/releases/latest/download/TeleNotch.dmg"

@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         installEditMenu()
+        MoveToApplications.offerIfNeeded()
         Updates.shared.start()
         copilot.onNeedsPanel = { [weak self] in if self?.panel.isVisible == false { self?.panel.show() } }
         copilot.confirmConsent = { [weak self] in self?.askConsent() ?? true }

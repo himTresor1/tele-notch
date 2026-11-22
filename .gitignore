@@ -3,3 +3,4 @@ build/
 vendor/
 release/
 sparkle-key.txt
+dmg/

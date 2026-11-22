@@ -12,8 +12,8 @@
     return;
   }
 
-  const latestZip = `https://github.com/${repo}/releases/latest/download/TeleNotch.zip`;
-  $all("[data-download]").forEach((a) => (a.href = latestZip));
+  const latestDmg = `https://github.com/${repo}/releases/latest/download/TeleNotch.dmg`;
+  $all("[data-download]").forEach((a) => (a.href = latestDmg));
   $all("[data-repo-link]").forEach((a) => (a.href = `https://github.com/${repo}`));
 
   fetch(`https://api.github.com/repos/${repo}/releases?per_page=20`, { headers: { Accept: "application/vnd.github+json" } })
@@ -43,7 +43,8 @@
   }
 
   function renderRelease(r, isLatest) {
-    const zip = (r.assets || []).find((a) => a.name.endsWith(".zip"));
+    const assets = r.assets || [];
+    const zip = assets.find((a) => a.name.endsWith(".dmg")) || assets.find((a) => a.name.endsWith(".zip"));
     return `<article class="release">
       <header>
         <h3>${esc(r.name || r.tag_name)}</h3>

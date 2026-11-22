@@ -19,13 +19,31 @@
     <p class="sub" data-version-long>Loading…</p>
 
     <section id="install" class="install">
-      <h2>Install</h2>
-      <ol>
-        <li>Download <b>TeleNotch.zip</b>, open it, and drag <b>TeleNotch</b> into <b>Applications</b>.</li>
-        <li>Open it. A short guide sets up your Anthropic API key and permissions.</li>
-        <li>That's it. TeleNotch updates itself from then on.</li>
+      <h2>Install in four steps</h2>
+      <ol class="steps">
+        <li>
+          <b>Download and open <span class="file">TeleNotch.dmg</span></b>
+          <span>A window opens with TeleNotch and your Applications folder.</span>
+        </li>
+        <li>
+          <b>Drag TeleNotch onto Applications</b>
+          <span>Then eject the disk image (the ⏏ next to “TeleNotch” in Finder's sidebar).</span>
+        </li>
+        <li>
+          <b>Open TeleNotch from Applications</b>
+          <span>macOS will say <q>“TeleNotch” Not Opened</q>. That's expected for apps that aren't notarized by Apple yet. Click <b>Done</b>, <em>not</em> Move to Trash.</span>
+        </li>
+        <li>
+          <b>Allow it once in System Settings</b>
+          <span>Open <b>System Settings → Privacy &amp; Security</b>, scroll down to <b>Security</b>, and next to <q>“TeleNotch” was blocked</q> click <b>Open Anyway</b>. Enter your Mac password, then click <b>Open</b>.</span>
+        </li>
       </ol>
-      <p class="hint">Early builds aren't notarized by Apple yet. If macOS won't open TeleNotch, go to <b>System Settings → Privacy &amp; Security</b> and click <b>Open Anyway</b>.</p>
+      <p class="hint">You only do this once. A short guide then sets up your Anthropic API key and permissions, and TeleNotch updates itself from then on.</p>
+      <details class="dev">
+        <summary>Comfortable with Terminal?</summary>
+        <p>After step 2, this one command clears the download flag so TeleNotch opens without the warning. Only do this for apps you trust.</p>
+        <pre><code>xattr -dr com.apple.quarantine /Applications/TeleNotch.app</code></pre>
+      </details>
     </section>
 
     <div data-releases><p class="muted">Loading releases…</p></div>
