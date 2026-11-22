@@ -4,3 +4,4 @@ vendor/
 release/
 sparkle-key.txt
 dmg/
+.DS_Store
