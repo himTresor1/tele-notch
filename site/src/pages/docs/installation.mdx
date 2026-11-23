@@ -1,0 +1,94 @@
+---
+layout: ../../layouts/Docs.astro
+page: install
+title: Installation
+eyebrow: Get started
+description: Download TeleNotch, install it in Applications, and set it up in a few minutes.
+lead: Download the disk image, drag TeleNotch into Applications, and allow it once. A short guide then sets up everything else.
+---
+import Note from "../../components/Note.astro";
+import { DMG } from "../../lib/releases";
+
+## Requirements
+
+- macOS 26 or later
+- An Anthropic API key, for the copilot. You can add it during setup or later. [Create one in the Anthropic Console](https://console.anthropic.com/settings/keys).
+
+## Install in four steps
+
+<ol class="steps">
+  <li>
+    <b>Download and open TeleNotch.dmg</b>
+    <a href={DMG}>Download the latest version</a>, then open it from your Downloads folder. A window shows TeleNotch next to your Applications folder.
+  </li>
+  <li>
+    <b>Drag TeleNotch onto Applications</b>
+    Then eject the disk image with the ⏏ button next to “TeleNotch” in Finder's sidebar. If you open TeleNotch from the disk image by mistake, it offers to move itself into Applications.
+  </li>
+  <li>
+    <b>Open TeleNotch from Applications</b>
+    macOS says <b>“TeleNotch” Not Opened</b>. That's expected: TeleNotch isn't notarized by Apple yet. Click <b>Done</b>, <em>not</em> Move to Trash.
+  </li>
+  <li>
+    <b>Allow it once in System Settings</b>
+    Open <b>System Settings → Privacy &amp; Security</b> and scroll down to <b>Security</b>. Next to “TeleNotch” was blocked, click <b>Open Anyway</b>, enter your Mac password, then click <b>Open</b>.
+  </li>
+</ol>
+
+<Note>You only do this once. Updates install themselves after that.</Note>
+
+### Comfortable with Terminal?
+
+Instead of steps 3 and 4, run this after step 2. It clears the “downloaded from the internet” flag, so TeleNotch opens without the warning. Only do this for apps you trust.
+
+```sh
+xattr -dr com.apple.quarantine /Applications/TeleNotch.app
+```
+
+## First launch
+
+The first time TeleNotch opens, a welcome guide walks you through setup. You can reopen it any time from the **⋯** menu in the notch, or from **Settings**.
+
+1. **API key.** Paste your Anthropic key and click **Save & Test**. Pick a model: faster models answer sooner, Opus gives the most thoughtful answers. The key is stored in your Mac's Keychain.
+2. **Permissions.** Allow the microphone and system audio, and download the on-device speech model. Each one has a check, so you know it works before your first meeting.
+3. **How to use.** The main shortcuts, and a reminder to tell people when you're transcribing them.
+4. **Try it.** See a demo answer, then start the teleprompter.
+
+### Permissions TeleNotch asks for
+
+<div class="table"><table>
+  <tr><th>Permission</th><th>Why</th></tr>
+  <tr><td>Microphone</td><td>To transcribe what you say (<b>Me</b>).</td></tr>
+  <tr><td>System audio</td><td>To transcribe what your Mac plays: the other people on the call (<b>Others</b>).</td></tr>
+  <tr><td>Speech recognition</td><td>To turn audio into text on your Mac. The speech model downloads once.</td></tr>
+</table></div>
+
+The teleprompter needs none of these. If you turn one off later, the notch shows a message with a button that opens the right System Settings page.
+
+## Updates
+
+TeleNotch checks for updates once a day and installs them when you quit. To check now, click **⋯** in the notch (or the TeleNotch menu bar icon) and choose **Check for Updates…**. What changed in each version is in the [Changelog](/docs/changelog/).
+
+<Note>Updates only work when TeleNotch is in your Applications folder.</Note>
+
+## Troubleshooting
+
+### “TeleNotch” Not Opened
+
+Follow steps 3 and 4 above, or use the Terminal command. If there's no **Open Anyway** button, open TeleNotch once more and check System Settings again: the button appears for about an hour after you try to open the app.
+
+### The notch doesn't close
+
+You may have two copies of TeleNotch, for example one in Applications and one in Downloads. Update to version 0.2.2 or later, which closes any other copy when it opens, and move the extra copy to the Trash.
+
+### The copilot doesn't hear the other people
+
+Check that system audio is allowed in **System Settings → Privacy & Security → Screen & System Audio Recording**. The welcome guide's permission step can test it for you.
+
+### Every line shows up twice
+
+Your mic is picking up your speakers. Use headphones.
+
+## Uninstall
+
+Quit TeleNotch from the **⋯** menu, then move it from Applications to the Trash. To remove your API key too, open the **Keychain Access** app and delete the item named `app.telenotch.TeleNotch`.

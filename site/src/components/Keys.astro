@@ -1,0 +1,96 @@
+---
+// Mac-style keycaps for a shortcut, with the key's name printed on it like a real keyboard
+// ("⌃ control", "⌥ option"), so nobody has to guess which key ⌥ is.
+//   <Keys combo="⌃⌥P" />          inline, in a sentence
+//   <Keys combo="⌃⌥P" size="lg" /> big, next to a demo
+//   <Keys combo="⌃⌥↑ ⌃⌥↓" />      two shortcuts, "or" between them
+interface Props { combo: string; size?: "sm" | "lg"; id?: string }
+const { combo, size = "sm", id } = Astro.props;
+
+type Cap = { sym?: string; word?: string; wide?: boolean; name: string };
+const named: Record<string, Cap> = {
+  "⌃": { sym: "⌃", word: "control", name: "Control" },
+  "⌥": { sym: "⌥", word: "option", name: "Option" },
+  "⌘": { sym: "⌘", word: "command", name: "Command" },
+  "⇧": { sym: "⇧", word: "shift", name: "Shift" },
+  "↩": { sym: "↩", word: "return", name: "Return", wide: true },
+  Space: { word: "space", wide: true, name: "Space" },
+  "↑": { sym: "↑", name: "Up arrow" },
+  "↓": { sym: "↓", name: "Down arrow" },
+  "←": { sym: "←", name: "Left arrow" },
+  "→": { sym: "→", name: "Right arrow" },
+};
+
+function parse(s: string): Cap[] {
+  const caps: Cap[] = [];
+  let rest = s;
+  while (rest) {
+    if (rest.startsWith("Space")) { caps.push(named.Space); rest = rest.slice(5); continue; }
+    const ch = [...rest][0];
+    caps.push(named[ch] ?? { sym: ch.toUpperCase(), name: ch === "/" ? "Slash" : ch === "," ? "Comma" : ch.toUpperCase() });
+    rest = rest.slice(ch.length);
+  }
+  return caps;
+}
+const combos = combo.split(" ").filter(Boolean).map(parse);
+const label = combos.map((c) => c.map((k) => k.name).join(" + ")).join(" or ");
+---
+<span class:list={["keys", size]} role="img" aria-label={label} id={id} data-combo={combo}>
+  {combos.map((caps, ci) => (
+    <>
+      {ci > 0 && <span class="or">or</span>}
+      <span class="combo">
+        {caps.map((k, i) => (
+          <>
+            {i > 0 && <span class="plus">+</span>}
+            <kbd class:list={["cap", { wide: k.wide, mod: !!k.word && !!k.sym, word: !!k.word && !k.sym }]}>
+              {k.sym && <span class="sym">{k.sym}</span>}
+              {k.word && <span class="w">{k.word}</span>}
+            </kbd>
+          </>
+        ))}
+      </span>
+    </>
+  ))}
+</span>
+
+<style>
+  .keys { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; flex-wrap: wrap; }
+  .combo { display: inline-flex; align-items: center; gap: 3px; }
+  .plus, .or { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .or { margin: 0 2px; }
+  .cap {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    min-width: 24px; height: 24px; padding: 0 6px;
+    font: 600 12.5px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    color: var(--text); background: linear-gradient(#fff, #f6f6f8);
+    border: 1px solid #dcdce1; border-bottom-width: 2px; border-radius: 6px;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04); white-space: nowrap;
+    transition: transform .08s ease, background .08s ease, border-color .08s ease, box-shadow .08s ease;
+  }
+  .cap .w { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: .01em; }
+  .cap.word .w { color: var(--text); font-weight: 600; }
+  .cap .sym { font-size: 13px; }
+
+  /* Big keycaps: symbol top right, name bottom left, like a MacBook keyboard */
+  .lg { gap: 10px; }
+  .lg .combo { gap: 6px; }
+  .lg .plus { font-size: 16px; }
+  .lg .cap {
+    position: relative; min-width: 52px; height: 52px; padding: 0 10px; border-radius: 10px;
+    border-bottom-width: 3px; font-size: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.05);
+  }
+  .lg .cap.mod, .lg .cap.word { min-width: 74px; }
+  .lg .cap.wide { min-width: 84px; }
+  .lg .cap.mod .sym { position: absolute; top: 7px; right: 9px; font-size: 14px; }
+  .lg .cap.mod .w, .lg .cap.word .w { position: absolute; bottom: 7px; left: 9px; font-size: 12px; }
+  .lg .cap.word .w { color: var(--muted); font-weight: 500; }
+
+  /* Pressed (driven by the demos) */
+  :global(.cap.down) {
+    transform: translateY(2px); border-bottom-width: 1px !important;
+    background: linear-gradient(#e9f8f6, #dff4f1) !important; border-color: rgba(20,184,166,.55) !important;
+    box-shadow: 0 0 0 3px rgba(20,184,166,.15) !important;
+  }
+</style>

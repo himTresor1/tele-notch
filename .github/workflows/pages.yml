@@ -1,11 +1,14 @@
-# Publishes the landing page (site/) to GitHub Pages whenever it changes on main.
-# Release notes on the page come live from GitHub Releases, so releasing needs no site change.
+# Builds the website (site/, an Astro project) and publishes it to GitHub Pages.
+# Runs when the site changes on main, and whenever a release is published, so the
+# Changelog and the version on the home page pick up the new release.
 # One-time setup (done for himTresor1/tele-notch): repo Settings → Pages → Source: "GitHub Actions".
 name: Landing page
 on:
   push:
     branches: [main]
     paths: ['site/**', '.github/workflows/pages.yml']
+  release:
+    types: [published]
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,9 +26,22 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Build
+        working-directory: site
+        env:
+          ASTRO_TELEMETRY_DISABLED: 1
+          GITHUB_TOKEN: ${{ github.token }}   # read the releases without hitting the anonymous rate limit
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: site
+          path: site/dist
   deploy:
     needs: build
     runs-on: ubuntu-latest

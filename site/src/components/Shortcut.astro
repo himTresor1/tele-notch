@@ -1,0 +1,14 @@
+---
+// One shortcut on the How to Use page: what it does (the slot) and an animated demo with big keycaps.
+import NotchDemo, { type Scene } from "./NotchDemo.astro";
+interface Props { combo: string; scene: Scene }
+const { combo, scene } = Astro.props;
+---
+<div class="shortcut">
+  <div class="what"><slot /></div>
+  <NotchDemo combo={combo} scene={scene} />
+</div>
+<style>
+  .shortcut { margin: 0 0 12px; }
+  .what :global(p:last-child) { margin-bottom: 14px; }
+</style>

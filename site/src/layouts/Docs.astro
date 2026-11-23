@@ -1,0 +1,141 @@
+---
+// Docs page shell: sidebar · article · "On this page". MDX pages pass their headings in;
+// the Changelog passes its own (one per release).
+import "../styles/docs.css";
+import { DMG, GITHUB } from "../lib/releases";
+
+type Heading = { depth: number; slug: string; text: string; label?: string };
+interface Props {
+  frontmatter?: { title: string; description: string; eyebrow: string; lead?: string; page: string };
+  title?: string; description?: string; eyebrow?: string; lead?: string; page?: string;
+  headings?: Heading[];
+}
+const p = Astro.props;
+const fm = p.frontmatter ?? (p as any);
+const { title, description, eyebrow, lead, page } = fm;
+const toc = (p.headings ?? []).filter((h) => h.depth === 2 || h.depth === 3);
+
+const pages = [
+  { group: "Get started", id: "intro", title: "Introduction", href: "/docs/", icon: "intro" },
+  { group: "Get started", id: "install", title: "Installation", href: "/docs/installation/", icon: "install" },
+  { group: "Guides", id: "usage", title: "How to Use", href: "/docs/how-to-use/", icon: "usage" },
+  { group: "Updates", id: "changelog", title: "Changelog", href: "/docs/changelog/", icon: "changelog" },
+];
+const groups = [...new Set(pages.map((x) => x.group))];
+const i = pages.findIndex((x) => x.id === page);
+const prev = pages[i - 1], next = pages[i + 1];
+
+const icons: Record<string, string> = {
+  intro: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
+  install: '<path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
+  usage: '<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16.5" r="2.5"/>',
+  changelog: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5m4-1v5l3 2"/>',
+  book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5zM4 5.5v16"/>',
+  download: '<path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/>',
+  toc: '<path d="M4 6h16M4 12h12M4 18h8"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+};
+const svg = (n: string) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[n]}</svg>`;
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title} · TeleNotch Docs</title>
+  <meta name="description" content={description}>
+  <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)}>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+</head>
+<body>
+  <aside class="side">
+    <a class="brand" href="/"><img src="/logo.svg" alt="">TeleNotch <span class="badge">Docs</span></a>
+    <nav aria-label="Documentation">
+      {groups.map((g) => (
+        <>
+          <div class="group">{g}</div>
+          {pages.filter((x) => x.group === g).map((x) => (
+            <a href={x.href} aria-current={x.id === page ? "page" : undefined}><Fragment set:html={svg(x.icon)} />{x.title}</a>
+          ))}
+        </>
+      ))}
+    </nav>
+    <div class="foot">
+      <a href={DMG}>Download for Mac <span>↓</span></a>
+      <a href="/">TeleNotch home <span>↗</span></a>
+      <a href={GITHUB}>GitHub <span>↗</span></a>
+    </div>
+  </aside>
+
+  <header class="top">
+    <button class="menu" aria-label="Open menu"><Fragment set:html={svg("menu")} /></button>
+    <a class="mbrand" href="/docs/"><img src="/logo.svg" alt="">TeleNotch <span class="badge">Docs</span></a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="/docs/" class:list={{ on: page !== "changelog" }}><Fragment set:html={svg("book")} />Docs</a>
+      <a href="/docs/changelog/" class:list={{ on: page === "changelog" }}><Fragment set:html={svg("changelog")} />Changelog</a>
+    </nav>
+    <span class="spacer"></span>
+    <a class="dl" href={DMG}><Fragment set:html={svg("download")} />Download</a>
+  </header>
+
+  <div class="wrap">
+    <article>
+      <p class="eyebrow">{eyebrow}</p>
+      <h1>{title}</h1>
+      {lead && <p class="lead" set:html={lead} />}
+      <slot />
+      <nav class="pager">
+        {prev && <a href={prev.href}><small>← Previous</small><b>{prev.title}</b></a>}
+        {next && <a class="next" href={next.href}><small>Next →</small><b>{next.title}</b></a>}
+      </nav>
+    </article>
+    <aside class="toc" aria-label="On this page">
+      {toc.length > 0 && (
+        <>
+          <p class="title"><Fragment set:html={svg("toc")} />On this page</p>
+          <ul>
+            {toc.map((h) => <li><a href={`#${h.slug}`} class:list={{ sub: h.depth === 3 }}>{h.label ?? h.text}</a></li>)}
+          </ul>
+        </>
+      )}
+    </aside>
+  </div>
+
+  <script>
+    // Phone menu
+    const menu = document.querySelector<HTMLElement>(".top .menu")!;
+    const side = document.querySelector<HTMLElement>(".side")!;
+    menu.addEventListener("click", () => document.body.classList.toggle("nav-open"));
+    document.addEventListener("click", (e) => {
+      const t = e.target as Node;
+      if (document.body.classList.contains("nav-open") && !side.contains(t) && !menu.contains(t)) document.body.classList.remove("nav-open");
+    });
+
+    // Heading anchors + "On this page" highlight
+    const article = document.querySelector("article")!;
+    const heads = Array.from(article.querySelectorAll<HTMLElement>("h2[id], h3[id]")).filter((h) => !h.closest(".demo"));
+    heads.forEach((h) => h.insertAdjacentHTML("afterbegin", `<a class="anchor" href="#${h.id}" aria-hidden="true">#</a>`));
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>(".toc a"));
+    const mark = () => {
+      let cur = heads[0];
+      for (const h of heads) if (h.getBoundingClientRect().top < 140) cur = h;
+      if (innerHeight + scrollY >= document.body.scrollHeight - 4) cur = heads[heads.length - 1];
+      links.forEach((a) => a.classList.toggle("on", !!cur && a.getAttribute("href") === "#" + cur.id));
+    };
+    addEventListener("scroll", mark, { passive: true });
+    mark();
+
+    // Copy buttons on code blocks
+    document.querySelectorAll("article pre").forEach((pre) => {
+      const text = pre.textContent!.trim();
+      const b = document.createElement("button");
+      b.className = "copy"; b.type = "button"; b.textContent = "Copy";
+      b.onclick = () => navigator.clipboard.writeText(text).then(() => {
+        b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy"), 1500);
+      });
+      pre.append(b);
+    });
+  </script>
+</body>
+</html>

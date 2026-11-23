@@ -9,5 +9,5 @@ echo "$REPO" > github-repo.txt
 # The app checks this feed for updates; "latest" always points at the newest release.
 echo "https://github.com/$REPO/releases/latest/download/appcast.xml" > feed-url.txt
 # The landing page reads releases (and their notes) from this repo.
-printf 'window.TELENOTCH_REPO = "%s";\n' "$REPO" > site/config.js
+sed -i '' "s|^export const REPO = .*|export const REPO = \"$REPO\";|" site/src/lib/releases.ts
 echo "Repo set to $REPO. Rebuild the app (./build.sh) so it checks this feed."

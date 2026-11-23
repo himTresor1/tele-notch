@@ -27,7 +27,9 @@ You rarely need to remember these: the bottom of the notch always shows the keys
 Errors and status (no API key, permission off, mic-only mode, offline…) show up as a message at the bottom of the notch, with a button to fix them.
 
 ## Releases, updates and the landing page
-Everything is hosted on GitHub: each version is a GitHub Release (the app zip + the update feed), and the landing page in `site/` runs on GitHub Pages and shows release notes straight from those releases.
+Everything is hosted on GitHub: each version is a GitHub Release (the app zip + the update feed), and the website in `site/` (an [Astro](https://astro.build) project: landing page + docs) runs on GitHub Pages. Its Changelog is built from those releases, and publishing a release rebuilds the site.
+
+To work on the site: `cd site && npm install && npm run dev`, then open http://localhost:4321.
 
 **One-time setup**
 1. Create a **public** GitHub repo (e.g. `telenotch`) and push this folder to it.

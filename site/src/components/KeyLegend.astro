@@ -1,0 +1,30 @@
+---
+// "Which key is ⌥?" — the modifier keys, drawn like the keys on a MacBook, with where to find them.
+import Keys from "./Keys.astro";
+---
+<div class="legend">
+  <div class="row">
+    <div class="item"><Keys combo="⌃" size="lg" /><b>Control</b><span>Bottom row, near the left corner. On a MacBook it sits next to <i>fn</i>.</span></div>
+    <div class="item"><Keys combo="⌥" size="lg" /><b>Option</b><span>Right next to Control. Sometimes labelled <i>alt</i>.</span></div>
+    <div class="item"><Keys combo="↩" size="lg" /><b>Return</b><span>The big key on the right, also called <i>Enter</i>.</span></div>
+  </div>
+  <div class="how">
+    <Keys combo="⌃⌥P" size="lg" />
+    <p><b>Hold Control and Option together, then tap the last key.</b> Every TeleNotch shortcut works this way, so you only have to remember the last key.</p>
+  </div>
+</div>
+<style>
+  .legend { border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin: 4px 0 28px; background: linear-gradient(180deg, #fbfbfc, #f6f7f9); }
+  .row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .item { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .item b { margin-top: 6px; font-size: 15px; color: var(--text); }
+  .item span { font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+  .how { display: flex; align-items: center; gap: 18px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .how p { margin: 0; flex: 1; min-width: 220px; font-size: 15px; color: var(--body); }
+  @media (max-width: 640px) {
+    .row { grid-template-columns: 1fr; gap: 14px; }
+    .item { display: grid; grid-template-columns: 86px 1fr; column-gap: 12px; row-gap: 0; align-items: start; }
+    .item > :global(.keys) { grid-row: span 2; }
+    .item b { margin-top: 2px; }
+  }
+</style>

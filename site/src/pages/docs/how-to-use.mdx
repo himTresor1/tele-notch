@@ -1,0 +1,122 @@
+---
+layout: ../../layouts/Docs.astro
+page: usage
+title: How to Use
+eyebrow: Guides
+description: Use the TeleNotch teleprompter and meeting copilot. Every shortcut, with an animated demo.
+lead: Everything happens in the black panel at the top of your screen. Click its buttons, or use the shortcuts below. Each one comes with a demo of what it does.
+---
+import Keys from "../../components/Keys.astro";
+import KeyLegend from "../../components/KeyLegend.astro";
+import Shortcut from "../../components/Shortcut.astro";
+import Note from "../../components/Note.astro";
+
+## The keys you'll use
+
+<KeyLegend />
+
+## The notch panel
+
+### Show or hide the panel
+
+<Shortcut combo="⌃⌥Space" scene="toggle">
+The panel tucks back into the notch and comes out again. You can also click the **˄** button at its top right, or use the TeleNotch icon in the menu bar.
+</Shortcut>
+
+### See every shortcut
+
+<Shortcut combo="⌃⌥/" scene="help">
+All the shortcuts appear in the notch. You rarely need this: the bottom of the panel always shows the keys that make sense right now.
+</Shortcut>
+
+## Teleprompter
+
+### Edit your script
+
+<Shortcut combo="⌃⌥E" scene="edit">
+Paste or type your script. It saves as you type. Click **Start Scrolling** when you're ready.
+</Shortcut>
+
+### Play or pause
+
+<Shortcut combo="⌃⌥P" scene="play">
+Starts or stops the scrolling. The same shortcut also closes an answer.
+</Shortcut>
+
+### Scroll faster or slower
+
+<Shortcut combo="⌃⌥↑ ⌃⌥↓" scene="speed">
+Changes the speed by 10 words per minute. 140 wpm is a relaxed speaking pace; the current speed shows at the top of the panel.
+</Shortcut>
+
+### Jump back a few lines
+
+<Shortcut combo="⌃⌥←" scene="back">
+Lost your place? Jump back and keep going. To start again from the top, choose **Restart Script** from the menu bar icon.
+</Shortcut>
+
+## Meeting copilot
+
+<Note>Use headphones. With speakers, your mic also picks up the other people. TeleNotch filters out most of that echo, but headphones work best.</Note>
+
+### Start or stop listening
+
+<Shortcut combo="⌃⌥L" scene="listen">
+TeleNotch transcribes your mic as **Me** and everything your Mac plays as **Others** (Zoom, Meet, Teams, anything). Transcription happens on your Mac. While you listen, Claude keeps short running notes of the meeting.
+</Shortcut>
+
+### Answer for me
+
+<Shortcut combo="⌃⌥↩" scene="answer">
+When someone asks you something, an answer starts appearing in the notch within about a second, marked **Say this**. It's written as you, in the first person, and takes a clear side, so you can read it straight out. Press again to go back to your script.
+</Shortcut>
+
+### Catch me up
+
+<Shortcut combo="⌃⌥C" scene="catchup">
+Drifted off? Get three short lines: what's being discussed, where it's heading, and whether anyone asked you something.
+</Shortcut>
+
+### Open Settings
+
+<Shortcut combo="⌃⌥," scene="settings">
+Your API key, the Claude model, the copilot mode, text size, panel size, and more.
+</Shortcut>
+
+## Better answers
+
+Answers get better when Claude knows who you are and what the meeting is about. Open Settings (<Keys combo="⌃⌥," />) and fill in:
+
+- **About me:** your name, your role, your views, and how you talk.
+- **This meeting:** the agenda, the goals, and who's there.
+
+Then pick a mode:
+
+- **Meeting:** answers draw on the conversation and your notes.
+- **Presentation:** answers respond to the question you just heard. Your script is used only as background, so you're not pushed back to your slides.
+
+You can also choose the Claude model. Faster models put the answer on screen sooner; Opus gives the most thoughtful answers.
+
+The **⋯** menu in the notch has the rest: **Live Transcript…** shows everything that's been said, and **New Meeting** clears the transcript and notes so the next answer doesn't mix up two meetings.
+
+## All shortcuts
+
+<div class="table"><table>
+  <tr><th>Shortcut</th><th>Action</th></tr>
+  <tr><td><Keys combo="⌃⌥Space" /></td><td>Show or hide the panel</td></tr>
+  <tr><td><Keys combo="⌃⌥P" /></td><td>Play or pause the script, or close an answer</td></tr>
+  <tr><td><Keys combo="⌃⌥↑ ⌃⌥↓" /></td><td>Scroll faster or slower</td></tr>
+  <tr><td><Keys combo="⌃⌥←" /></td><td>Jump back a few lines</td></tr>
+  <tr><td><Keys combo="⌃⌥E" /></td><td>Edit the script</td></tr>
+  <tr><td><Keys combo="⌃⌥L" /></td><td>Start or stop listening</td></tr>
+  <tr><td><Keys combo="⌃⌥↩" /></td><td>Answer for me; press again to go back to the script</td></tr>
+  <tr><td><Keys combo="⌃⌥C" /></td><td>Catch me up</td></tr>
+  <tr><td><Keys combo="⌃⌥/" /></td><td>Show every shortcut in the notch</td></tr>
+  <tr><td><Keys combo="⌃⌥," /></td><td>Settings</td></tr>
+</table></div>
+
+## Screen sharing and privacy
+
+The panel asks macOS to keep it out of screen shares and recordings, so the people you share your screen with don't see your script or answers. Check it once with your own meeting app before you rely on it.
+
+Audio stays on your Mac. Transcript text goes to Claude only when you press Answer or Catch up, and for the running notes while you're listening. Tell people when you're transcribing them: in some places, everyone on a call has to agree to it.

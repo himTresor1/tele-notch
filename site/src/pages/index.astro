@@ -1,3 +1,10 @@
+---
+// The one-screen landing page: notch, logo, headline, two buttons.
+import "../styles/home.css";
+import { DMG, GITHUB, getReleases } from "../lib/releases";
+const [latest] = await getReleases();
+const fine = `${latest ? `Version ${latest.version} · ` : ""}Free · macOS 26 or later · Uses your own Anthropic API key`;
+---
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,8 +12,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TeleNotch</title>
   <meta name="description" content="A teleprompter in your MacBook's notch that tells you what to say when you're put on the spot.">
-  <link rel="icon" href="logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css">
+  <link rel="canonical" href={Astro.site}>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
 </head>
 <body class="home">
   <!-- The notch, dropping from the top of the page: script → answer, like the app -->
@@ -20,26 +27,23 @@
   </div>
 
   <main class="hero">
-    <img class="logo" src="logo.svg" alt="TeleNotch" width="72" height="72">
+    <img class="logo" src="/logo.svg" alt="TeleNotch" width="72" height="72">
     <h1>Your script in the notch.<br><span>Your answer on cue.</span></h1>
     <p class="sub">A teleprompter that sits right under your camera. When someone puts you on the spot, one shortcut tells you what to say.</p>
     <div class="ctas">
-      <a class="btn dark" data-download href="docs/installation.html">
+      <a class="btn dark" href={DMG}>
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1ZM5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1Z"/></svg>
         Download for Mac
       </a>
-      <a class="btn light" href="docs/changelog.html">Release notes</a>
+      <a class="btn light" href="/docs/changelog/">Release notes</a>
     </div>
-    <p class="fine" data-version>Free · macOS 26 or later · Uses your own Anthropic API key</p>
-    <a class="howto" href="docs/installation.html">How to install →</a>
+    <p class="fine">{fine}</p>
+    <a class="howto" href="/docs/installation/">How to install →</a>
   </main>
 
   <footer>
     <span>TeleNotch · MIT License</span>
-    <span><a href="docs/">Docs</a> · <a data-repo-link href="docs/">GitHub</a></span>
+    <span><a href="/docs/">Docs</a> · <a href={GITHUB}>GitHub</a></span>
   </footer>
-
-  <script src="config.js"></script>
-  <script src="app.js"></script>
 </body>
 </html>

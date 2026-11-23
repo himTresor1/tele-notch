@@ -1,0 +1,9 @@
+---
+// A callout box. <Note>…</Note> (teal) or <Note warn>…</Note> (amber).
+interface Props { warn?: boolean }
+const { warn = false } = Astro.props;
+---
+<div class:list={["note", { warn }]}>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg>
+  <div><slot /></div>
+</div>

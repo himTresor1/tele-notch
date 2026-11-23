@@ -1,0 +1,27 @@
+---
+// One entry per GitHub release, newest first. Built at deploy time; publishing a release redeploys the site.
+import Docs from "../../layouts/Docs.astro";
+import { getReleases, longDate, shortDate, markdown, GITHUB } from "../../lib/releases";
+
+const releases = await getReleases();
+const slug = (v: string) => "v" + v.replace(/\./g, "-");
+const headings = releases.map((r) => ({ depth: 2, slug: slug(r.version), text: longDate(r.date), label: `${r.version} · ${shortDate(r.date)}` }));
+---
+<Docs
+  page="changelog"
+  title="Changelog"
+  eyebrow="Updates"
+  description="What's new in each version of TeleNotch."
+  lead="What's new in each version of TeleNotch. Installed copies update themselves; to update now, choose <b>Check for Updates…</b> from the <b>⋯</b> menu in the notch."
+  headings={headings}
+>
+  {releases.length === 0 && <p>Couldn't load the changelog. <a href={`${GITHUB}/releases`}>See every release on GitHub</a>.</p>}
+  {releases.map((r, i) => (
+    <section class="release">
+      <h2 id={slug(r.version)}>{longDate(r.date)}</h2>
+      <div class="ver">Version {r.version}{i === 0 && <span class="latest">Latest</span>}</div>
+      <div class="body" set:html={markdown(r.body)} />
+      {r.download && <a class="dlv" href={r.download}>Download version {r.version} →</a>}
+    </section>
+  ))}
+</Docs>
