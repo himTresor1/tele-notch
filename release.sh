@@ -19,6 +19,8 @@ REPO=$(tr -d '[:space:]' < github-repo.txt)
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Info.plist)
 BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' Info.plist)
 TAG="v$VERSION"
+# The landing page: a custom domain from site-url.txt, or the default GitHub Pages address.
+SITE=$( [ -s site-url.txt ] && tr -d '[:space:]' < site-url.txt || echo "https://${REPO%%/*}.github.io/${REPO#*/}/" )
 NOTES="release-notes/$VERSION.md"
 [ -s "$NOTES" ] || { echo "Write the release notes first: $NOTES"; exit 1; }
 
@@ -39,7 +41,7 @@ ditto -c -k --keepParent build/TeleNotch.app release/TeleNotch.zip
 cp "$NOTES" release/TeleNotch.md
 vendor/sparkle-tools/bin/generate_appcast --account telenotch --embed-release-notes \
   --download-url-prefix "https://github.com/$REPO/releases/download/$TAG/" \
-  --link "https://${REPO%%/*}.github.io/${REPO#*/}/" \
+  --link "$SITE" \
   -o release/appcast.xml release
 rm release/TeleNotch.md
 # The disk image is what people download first (drag-to-Applications window); the zip is for auto-updates.

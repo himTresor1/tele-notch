@@ -33,7 +33,7 @@ Everything is hosted on GitHub: each version is a GitHub Release (the app zip + 
 1. Create a **public** GitHub repo (e.g. `telenotch`) and push this folder to it.
 2. `./scripts/set-repo.sh your-name/telenotch`: points the app's update feed, the release script and the landing page at it.
 3. Install and sign in to the GitHub CLI: `brew install gh` then `gh auth login`.
-4. In the repo: Settings → Pages → Source: **GitHub Actions**. The page goes live at `https://your-name.github.io/telenotch/` after the next push.
+4. In the repo: Settings → Pages → Source: **GitHub Actions**. The page goes live at `https://your-name.github.io/telenotch/` after the next push. For a custom domain, set it under Settings → Pages, add a CNAME record pointing at `your-name.github.io`, and put the address in `site-url.txt` (the update window links there).
 
 **Every release**
 1. Bump `CFBundleShortVersionString` and `CFBundleVersion` in `Info.plist`.
