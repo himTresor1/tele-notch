@@ -15,23 +15,144 @@ enum CaptureError: LocalizedError {
     }
 }
 
+// MARK: - Audio devices
+
+enum AudioDevices {
+    static func defaultInput() -> AudioDeviceID? { systemDevice(kAudioHardwarePropertyDefaultInputDevice) }
+
+    static func isBluetooth(_ id: AudioDeviceID) -> Bool {
+        let t = uint32(id, kAudioDevicePropertyTransportType) ?? 0
+        return t == kAudioDeviceTransportTypeBluetooth || t == kAudioDeviceTransportTypeBluetoothLE
+    }
+
+    /// The Mac's own microphone, if it has one.
+    static func builtInInput() -> AudioDeviceID? {
+        allDevices().first { uint32($0, kAudioDevicePropertyTransportType) == kAudioDeviceTransportTypeBuiltIn && hasInput($0) }
+    }
+
+    static func name(_ id: AudioDeviceID) -> String {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioObjectPropertyName, mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var name: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &name) == noErr, let n = name?.takeRetainedValue() else { return "microphone" }
+        return n as String
+    }
+
+    private static func systemDevice(_ selector: AudioObjectPropertySelector) -> AudioDeviceID? {
+        var id = AudioDeviceID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id) == noErr,
+              id != kAudioObjectUnknown else { return nil }
+        return id
+    }
+
+    static func allDevices() -> [AudioDeviceID] {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices, mScope: kAudioObjectPropertyScopeGlobal,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size) == noErr else { return [] }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &ids) == noErr else { return [] }
+        return ids
+    }
+
+    private static func hasInput(_ id: AudioDeviceID) -> Bool {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreams, mScope: kAudioObjectPropertyScopeInput,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        return AudioObjectGetPropertyDataSize(id, &addr, 0, nil, &size) == noErr && size > 0
+    }
+
+    private static func uint32(_ id: AudioObjectID, _ selector: AudioObjectPropertySelector) -> UInt32? {
+        var v: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        return AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &v) == noErr ? v : nil
+    }
+}
+
+/// Calls back (on the main queue) when the default mic or speakers change (e.g. headphones connect).
+final class AudioDeviceWatcher {
+    private let onChange: () -> Void
+    private var listeners: [(AudioObjectPropertyAddress, AudioObjectPropertyListenerBlock)] = []
+
+    init(onChange: @escaping () -> Void) {
+        self.onChange = onChange
+        // Not kAudioHardwarePropertyDevices: our own capture device would trigger it, and we'd restart in a loop.
+        for sel in [kAudioHardwarePropertyDefaultInputDevice, kAudioHardwarePropertyDefaultOutputDevice,
+                    kAudioHardwarePropertyDefaultSystemOutputDevice] {
+            var addr = AudioObjectPropertyAddress(mSelector: sel, mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+            let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.onChange() }
+            if AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &addr, .main, block) == noErr {
+                listeners.append((addr, block))
+            }
+        }
+    }
+
+    deinit {
+        for (a, block) in listeners {
+            var addr = a
+            AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &addr, .main, block)
+        }
+    }
+}
+
+/// When audio last arrived from a source. Written on audio threads, read on the main thread.
+final class Heartbeat: @unchecked Sendable {
+    private let lock = NSLock()
+    private var t = Date()
+    func beat() { lock.lock(); t = Date(); lock.unlock() }
+    var last: Date { lock.lock(); defer { lock.unlock() }; return t }
+}
+
 // MARK: - Microphone ("Me")
 
 final class MicCapture {
-    private let engine = AVAudioEngine()
+    private var engine: AVAudioEngine?
+    private var observer: NSObjectProtocol?
+    /// The microphone in use, e.g. "MacBook Air Microphone".
+    private(set) var deviceName = ""
+    /// True when the default mic was a Bluetooth headset and we used the built-in mic instead.
+    private(set) var avoidedBluetooth = false
+    /// The engine stopped because the audio hardware changed underneath it.
+    var onConfigurationChange: (() -> Void)?
 
     func start(_ onBuffer: @escaping BufferHandler) throws {
-        let input = engine.inputNode
+        let e = AVAudioEngine()
+        let input = e.inputNode
+        // Recording from a Bluetooth headset's mic switches it into low-quality "call mode", which also
+        // changes what it plays and breaks the system-audio capture. Use the Mac's own mic instead.
+        var device = AudioDevices.defaultInput()
+        avoidedBluetooth = false
+        if let d = device, AudioDevices.isBluetooth(d), let builtIn = AudioDevices.builtInInput(), let unit = input.audioUnit {
+            var id = builtIn
+            if AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                    &id, UInt32(MemoryLayout<AudioDeviceID>.size)) == noErr {
+                device = builtIn
+                avoidedBluetooth = true
+            }
+        }
+        deviceName = device.map(AudioDevices.name) ?? "microphone"
+
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw CaptureError.noFormat }
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in onBuffer(buffer) }
-        engine.prepare()
-        try engine.start()
+        e.prepare()
+        try e.start()
+        engine = e
+        observer = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: e, queue: .main) { [weak self] _ in
+            self?.onConfigurationChange?()
+        }
     }
 
     func stop() {
-        engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        observer = nil
+        engine?.inputNode.removeTap(onBus: 0)
+        engine?.stop()
+        engine = nil
     }
 }
 

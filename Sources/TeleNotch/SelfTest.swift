@@ -21,6 +21,7 @@ enum SelfTest {
         case "system", "mic": await capture(mode, audio)
         case "full": await full(copilot, audio)
         case "render": render(copilot, path)
+        case "devices": devices()
         default: log("unknown mode")
         }
         try? out.write(toFile: path, atomically: true, encoding: .utf8)
@@ -112,12 +113,29 @@ enum SelfTest {
         shot("help")
     }
 
+    // MARK: Which microphone TeleNotch would pick
+
+    static func devices() {
+        if let d = AudioDevices.defaultInput() {
+            log("default input: \(AudioDevices.name(d)) — bluetooth: \(AudioDevices.isBluetooth(d))")
+        } else { log("default input: none") }
+        log("built-in mic: \(AudioDevices.builtInInput().map(AudioDevices.name) ?? "none")")
+        for d in AudioDevices.allDevices() { log("  device: \(AudioDevices.name(d)) — bluetooth: \(AudioDevices.isBluetooth(d))") }
+        let mic = MicCapture()
+        do {
+            try mic.start { _ in }
+            log("TeleNotch records from: \(mic.deviceName) (avoided Bluetooth: \(mic.avoidedBluetooth))")
+            mic.stop()
+        } catch { log("mic start failed: \(error.localizedDescription)") }
+    }
+
     // MARK: Whole pipeline through the app's own Start Listening
 
     static func full(_ copilot: Copilot, _ path: String?) async {
         guard let path else { log("no audio file"); return }
         await copilot.startListening()
         log("status: \(copilot.status)")
+        log("message: \(copilot.banner?.text ?? "-")")
         guard copilot.listening else { return }
         do {
             try await Task.sleep(for: .seconds(1))

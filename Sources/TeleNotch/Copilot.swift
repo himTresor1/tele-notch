@@ -102,6 +102,15 @@ final class Copilot: ObservableObject {
     private let system = SystemAudioCapture()
     private var micT: StreamTranscriber?
     private var sysT: StreamTranscriber?
+    // Keeping listening alive when audio devices change
+    private var watcher: AudioDeviceWatcher?
+    private var watchdog: Timer?
+    private var restartWork: DispatchWorkItem?
+    private var restarting = false
+    private var restartAttempts = 0
+    private var hearsOthers = false
+    private let micBeat = Heartbeat()
+    private let sysBeat = Heartbeat()
     private var notesTimer: Timer?
     private var notesCoveredUntil = Date.distantPast
     private var notesBusy = false
@@ -161,18 +170,16 @@ final class Copilot: ObservableObject {
             try await m.start(locale: locale)
             try await s.start(locale: locale)
             micT = m; sysT = s
-            try mic.start { m.feed($0) }
-            var sysOK = true
-            do { try system.start { s.feed($0) } } catch {
-                sysOK = false
-                NSLog("TeleNotch system audio failed: \(error.localizedDescription)")
-            }
+            let sysOK = try startCapture()
             listening = true
             notesCoveredUntil = Date()
             startNotesTimer()
+            startKeepAlive()
             if sysOK {
                 status = "Listening"
-                notify("Listening. Press ⌃⌥↩ when someone asks you something.")
+                notify(mic.avoidedBluetooth
+                       ? "Listening, with the \(mic.deviceName) so your Bluetooth headphones keep their sound quality. Press ⌃⌥↩ when asked something."
+                       : "Listening. Press ⌃⌥↩ when someone asks you something.")
             } else {
                 status = "Listening to your mic only"
                 notify("Listening to your mic only: TeleNotch can't hear the other people. Allow it under Screen & System Audio Recording.",
@@ -187,6 +194,7 @@ final class Copilot: ObservableObject {
 
     func stopListening() async {
         let was = listening
+        stopKeepAlive()
         mic.stop()
         system.stop()
         await micT?.stop(); await sysT?.stop()
@@ -194,6 +202,92 @@ final class Copilot: ObservableObject {
         notesTimer?.invalidate(); notesTimer = nil
         listening = false
         if was { status = "Not listening"; notify("Stopped listening.") }
+    }
+
+    // MARK: Audio capture that survives device changes
+
+    /// Starts the mic and system-audio capture into the running transcribers. Returns whether system audio works.
+    private func startCapture() throws -> Bool {
+        guard let m = micT, let s = sysT else { return false }
+        micBeat.beat(); sysBeat.beat()
+        let micBeat = micBeat, sysBeat = sysBeat
+        try mic.start { micBeat.beat(); m.feed($0) }
+        mic.onConfigurationChange = { [weak self] in self?.scheduleRestart() }
+        do {
+            try system.start { sysBeat.beat(); s.feed($0) }
+            hearsOthers = true
+        } catch {
+            hearsOthers = false
+            NSLog("TeleNotch system audio failed: \(error.localizedDescription)")
+        }
+        return hearsOthers
+    }
+
+    private func startKeepAlive() {
+        restartAttempts = 0
+        watcher = AudioDeviceWatcher { [weak self] in
+            MainActor.assumeIsolated { self?.scheduleRestart() }
+        }
+        // Audio arrives several times a second, even in silence. If a source goes quiet, its stream died.
+        watchdog = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkAudioFlowing() }
+        }
+    }
+
+    private func stopKeepAlive() {
+        watcher = nil
+        watchdog?.invalidate(); watchdog = nil
+        restartWork?.cancel(); restartWork = nil
+    }
+
+    /// Devices often change in bursts (headphones connecting, a call app switching modes): wait for it to settle.
+    private func scheduleRestart() {
+        guard listening else { return }
+        restartWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { Task { await self?.restartCapture(announce: true) } }
+        }
+        restartWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: work)
+    }
+
+    private func checkAudioFlowing() {
+        guard listening, !restarting else { return }
+        let now = Date()
+        let micDead = now.timeIntervalSince(micBeat.last) > 8
+        let sysDead = hearsOthers && now.timeIntervalSince(sysBeat.last) > 8
+        guard micDead || sysDead else { restartAttempts = 0; return }
+        if restartAttempts < 2 {
+            restartAttempts += 1
+            Task { await restartCapture(announce: false) }
+        } else if restartAttempts == 2 {
+            restartAttempts += 1
+            let what = micDead ? "your microphone (\(mic.deviceName))" : "the other people (your Mac's sound)"
+            notify("TeleNotch isn't getting any audio from \(what). Press ⌃⌥L twice to restart listening, or check Sound in System Settings.",
+                   .warning)
+        }
+    }
+
+    /// Restarts the mic and system-audio capture, keeping the transcript and transcribers.
+    private func restartCapture(announce: Bool) async {
+        guard listening, !restarting else { return }
+        restarting = true
+        defer { restarting = false }
+        mic.stop()
+        system.stop()
+        try? await Task.sleep(for: .milliseconds(400))
+        guard listening else { return }
+        do {
+            let ok = try startCapture()
+            if announce {
+                notify(ok ? "Audio devices changed. Still listening, with the \(mic.deviceName)."
+                          : "Audio devices changed. Listening to your mic only: TeleNotch can't hear the other people right now.",
+                       ok ? .info : .warning)
+            }
+        } catch {
+            notify("Lost the microphone after an audio change: \(error.localizedDescription). Press ⌃⌥L to try again.", .error)
+            await stopListening()
+        }
     }
 
     func newMeeting() {
