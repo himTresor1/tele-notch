@@ -85,8 +85,8 @@ enum SelfTest {
         let tp = Teleprompter()
         let actions = PanelActions(editScript: {}, settings: {}, transcript: {}, welcome: {}, hide: {})
         func shot(_ name: String) {
-            let view = PanelView(teleprompter: tp, copilot: copilot, actions: actions, topInset: 32, notchWidth: 190)
-                .frame(width: 600, height: 222)
+            let view = PanelView(teleprompter: tp, copilot: copilot, state: PanelState(open: true), actions: actions, topInset: 32, notchWidth: 190)
+                .frame(width: 600 + 2 * PanelView.ear, height: 222)
             let r = ImageRenderer(content: view)
             r.scale = 2
             guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),

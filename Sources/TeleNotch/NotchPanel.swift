@@ -46,13 +46,25 @@ struct PanelActions {
     var hide: () -> Void
 }
 
+/// Whether the panel is open. Drives the grow-out-of-the-notch animation.
+final class PanelState: ObservableObject {
+    @Published var open: Bool
+    init(open: Bool = false) { self.open = open }
+}
+
 @MainActor
 final class NotchPanel {
     private var panel: NotchPanelWindow?
+    private var host: ClickThroughHostingView<PanelView>?
+    private let state = PanelState()
+    private var closeWork: DispatchWorkItem?
     private let teleprompter: Teleprompter
     private let copilot: Copilot
     private let actions: PanelActions
-    var isVisible: Bool { panel?.isVisible ?? false }
+    /// Open (or opening). A panel that's mid-way through closing counts as hidden, so toggling reopens it.
+    var isVisible: Bool { (panel?.isVisible ?? false) && state.open }
+    static let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8)
+    static let closeAnimation = Animation.spring(response: 0.3, dampingFraction: 0.95)
 
     init(teleprompter: Teleprompter, copilot: Copilot, actions: PanelActions) {
         self.teleprompter = teleprompter
@@ -65,27 +77,57 @@ final class NotchPanel {
 
     func toggle() { isVisible ? hide() : show() }
 
+    /// Grows out of the notch: the window appears with the panel the size of the notch, then springs open.
     func show() {
+        closeWork?.cancel(); closeWork = nil
         let p = panel ?? makePanel()
         panel = p
-        layout()
-        p.orderFrontRegardless()
+        if p.isVisible {
+            withAnimation(Self.openAnimation) { state.open = true }
+        } else {
+            state.open = false
+            layout()
+            p.orderFrontRegardless()
+            DispatchQueue.main.async { withAnimation(Self.openAnimation) { self.state.open = true } }
+        }
+        // The window shadow follows the panel's shape; refresh it once the spring settles.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { [weak self] in self?.panel?.invalidateShadow() }
     }
 
-    func hide() { panel?.orderOut(nil) }
+    /// Shrinks back into the notch, then removes the window.
+    func hide() {
+        guard let p = panel, p.isVisible else { return }
+        teleprompter.hover(false)
+        withAnimation(Self.closeAnimation) { state.open = false }
+        p.invalidateShadow()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.state.open else { return }
+            self.panel?.orderOut(nil)
+        }
+        closeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32, execute: work)
+    }
 
     /// Re-applies size settings (called when preferences change).
     func layout() {
         guard let p = panel, let notch = Notch.current() else { return }
-        let width = max(Prefs.panelWidth, notch.rect.width + 160)
+        // The window is wider than the panel by the curved "ears" that join it to the top of the screen.
+        let width = max(Prefs.panelWidth, notch.rect.width + 160) + 2 * PanelView.ear
         let topInset = notch.rect.height
         let height = Prefs.panelHeight + topInset
         let sf = notch.screen.frame
         var f = NSRect(x: notch.rect.midX - width / 2, y: sf.maxY - height, width: width, height: height)
         f.origin.x = min(max(f.minX, sf.minX + 4), sf.maxX - f.width - 4)
         p.setFrame(f, display: true)
-        p.contentView = ClickThroughHostingView(rootView: PanelView(teleprompter: teleprompter, copilot: copilot, actions: actions,
-                                                                   topInset: topInset, notchWidth: notch.rect.width))
+        let view = PanelView(teleprompter: teleprompter, copilot: copilot, state: state, actions: actions,
+                             topInset: topInset, notchWidth: notch.rect.width)
+        // Keep one hosting view and update it: swapping it out while the pointer is over the panel
+        // left AppKit's tooltip tracking pointing at freed views, which crashed the app.
+        if let host { host.rootView = view } else {
+            let h = ClickThroughHostingView(rootView: view)
+            host = h
+            p.contentView = h
+        }
     }
 
     private func makePanel() -> NotchPanelWindow {
@@ -94,12 +136,14 @@ final class NotchPanel {
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = true
+        p.ignoresMouseEvents = false
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         p.hidesOnDeactivate = false
         p.animationBehavior = .none
         p.isMovable = false
         // Ask macOS to leave this window out of screenshots, recordings and screen shares.
-        p.sharingType = .none
+        // (TELENOTCH_CAPTURABLE=1 lets screenshots see it, for testing and docs.)
+        p.sharingType = ProcessInfo.processInfo.environment["TELENOTCH_CAPTURABLE"] == nil ? .none : .readOnly
         return p
     }
 }
@@ -109,6 +153,7 @@ final class NotchPanel {
 struct PanelView: View {
     @ObservedObject var teleprompter: Teleprompter
     @ObservedObject var copilot: Copilot
+    @ObservedObject var state: PanelState
     let actions: PanelActions
     let topInset: CGFloat
     let notchWidth: CGFloat
@@ -117,7 +162,29 @@ struct PanelView: View {
     @AppStorage("showHints") private var showHints = true
     @AppStorage("glow") private var glow = true
 
+    /// Radius of the curves where the panel meets the top edge of the screen.
+    static let ear: CGFloat = 10
+
+    private var shape: NotchShape {
+        NotchShape(progress: state.open ? 1 : 0, notchWidth: notchWidth, notchHeight: topInset, ear: Self.ear)
+    }
+
     var body: some View {
+        content
+            .padding(.horizontal, Self.ear)
+            .opacity(state.open ? 1 : 0)
+            .scaleEffect(state.open ? 1 : 0.92, anchor: .top)
+            .animation(state.open ? .easeOut(duration: 0.22).delay(0.1) : .easeIn(duration: 0.1), value: state.open)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(panelBackground)
+            .clipShape(shape)
+            .contentShape(shape)
+            // Pointer on the panel pauses the script; moving away picks it up again.
+            .onHover { inside in teleprompter.hover(inside && state.open && !copilot.showingAnswer && !copilot.showingHelp) }
+            .environment(\.colorScheme, .dark)
+    }
+
+    private var content: some View {
         VStack(spacing: 0) {
             topBar.frame(height: max(topInset, 24))
             ZStack(alignment: .bottom) {
@@ -134,24 +201,22 @@ struct PanelView: View {
             if showHints { hints.padding(.horizontal, 16).padding(.bottom, 7).padding(.top, 3) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(panelBackground)
         .animation(.easeOut(duration: 0.15), value: copilot.banner)
-        .environment(\.colorScheme, .dark)
     }
 
     // MARK: Background: black, with teal light rising from the bottom edge behind the text
 
     private var panelBackground: some View {
-        let shape = UnevenRoundedRectangle(bottomLeadingRadius: 22, bottomTrailingRadius: 22, style: .continuous)
-        return shape.fill(Color.black)
+        shape.fill(Color.black)
             .overlay {
                 if glow {
                     // Brighter while an answer is being written.
                     TealGlow(topInset: topInset, intensity: copilot.streaming ? 1.35 : 1)
+                        .padding(.horizontal, Self.ear)
+                        .opacity(state.open ? 1 : 0)
                         .allowsHitTesting(false)
                 }
             }
-            .clipShape(shape)
     }
 
     // MARK: Top bar: controls either side of the notch
@@ -167,12 +232,9 @@ struct PanelView: View {
                     Text(copilot.listening ? "Listening" : copilot.starting ? "Starting…" : "Listen")
                 }
             }
-            .help(copilot.listening ? "Stop listening (⌃⌥L)" : "Start listening to the meeting (⌃⌥L)")
             if !copilot.showingAnswer && !copilot.showingHelp && !teleprompter.isEmpty {
                 Button(action: teleprompter.togglePlay) { Image(systemName: teleprompter.playing ? "pause.fill" : "play.fill") }
-                    .help("Play / pause the script (⌃⌥P)")
                 Text("\(Int(teleprompter.wpm)) wpm").monospacedDigit().foregroundStyle(.secondary)
-                    .help("Scroll speed in words per minute (⌃⌥↑ / ⌃⌥↓)")
             }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -183,15 +245,12 @@ struct PanelView: View {
                 if copilot.streaming { ProgressView().controlSize(.mini) }
                 Text(copilot.answerTitle).foregroundStyle(.secondary)
                 Button(action: copilot.dismissAnswer) { Label("Script", systemImage: "arrow.uturn.backward") }
-                    .help("Back to your script (⌃⌥↩)")
             } else if copilot.showingHelp {
                 Button { copilot.showingHelp = false } label: { Label("Done", systemImage: "checkmark") }
-                    .help("Close the shortcut list (⌃⌥/)")
             } else {
                 Button(action: copilot.answer) {
                     Label("Answer", systemImage: "text.bubble.fill")
                 }
-                .help("Write what I should say right now (⌃⌥↩)")
             }
             Menu {
                 Button("Edit Script…  ⌃⌥E", action: actions.editScript)
@@ -212,9 +271,7 @@ struct PanelView: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help("More: script, shortcuts, settings")
             Button(action: actions.hide) { Image(systemName: "chevron.up") }
-                .help("Hide the notch (⌃⌥Space brings it back)")
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -234,6 +291,8 @@ struct PanelView: View {
             items = copilot.streaming
                 ? [("⌃⌥P", "Back to script"), ("⌃⌥/", "Shortcuts")]
                 : [("⌃⌥↩", "Back to script"), ("⌃⌥C", "Catch up"), ("⌃⌥/", "Shortcuts")]
+        } else if teleprompter.pausedByHover {
+            items = [("⏸", "Paused while your pointer is on the notch. Move it away to continue")]
         } else if teleprompter.isEmpty {
             items = copilot.listening
                 ? [("⌃⌥↩", "Answer for me"), ("⌃⌥C", "Catch up"), ("⌃⌥E", "Add a script"), ("⌃⌥Space", "Hide")]
@@ -358,6 +417,45 @@ struct PanelView: View {
             }
             .padding(.top, 4)
         }
+    }
+}
+
+// MARK: - Panel shape
+
+/// The panel's outline: hangs from the top edge of the screen with curved "ears" flaring into it,
+/// like the hardware notch, and rounded bottom corners. At progress 0 it's the size of the notch;
+/// at 1 it fills the window, so animating progress grows the panel out of the notch.
+struct NotchShape: Shape {
+    var progress: CGFloat
+    let notchWidth: CGFloat
+    let notchHeight: CGFloat
+    let ear: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let t = max(0, progress)
+        let fullW = rect.width - 2 * ear
+        let w = notchWidth + (fullW - notchWidth) * t
+        let h = max(notchHeight, notchHeight + (rect.height - notchHeight) * t)
+        let r = min(10 + 12 * min(t, 1), h / 2, w / 2)   // bottom corners: notch-like when closed, softer when open
+        let e = min(ear, h - r)                            // ears
+        let x0 = rect.midX - w / 2, x1 = rect.midX + w / 2
+        let k: CGFloat = 0.552                             // circle-like cubic curves
+        var p = Path()
+        p.move(to: CGPoint(x: x0 - e, y: 0))
+        p.addCurve(to: CGPoint(x: x0, y: e), control1: CGPoint(x: x0 - e + e * k, y: 0), control2: CGPoint(x: x0, y: e - e * k))
+        p.addLine(to: CGPoint(x: x0, y: h - r))
+        p.addCurve(to: CGPoint(x: x0 + r, y: h), control1: CGPoint(x: x0, y: h - r + r * k), control2: CGPoint(x: x0 + r - r * k, y: h))
+        p.addLine(to: CGPoint(x: x1 - r, y: h))
+        p.addCurve(to: CGPoint(x: x1, y: h - r), control1: CGPoint(x: x1 - r + r * k, y: h), control2: CGPoint(x: x1, y: h - r + r * k))
+        p.addLine(to: CGPoint(x: x1, y: e))
+        p.addCurve(to: CGPoint(x: x1 + e, y: 0), control1: CGPoint(x: x1, y: e - e * k), control2: CGPoint(x: x1 + e - e * k, y: 0))
+        p.closeSubpath()
+        return p
     }
 }
 

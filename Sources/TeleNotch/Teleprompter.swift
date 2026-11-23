@@ -7,6 +7,8 @@ final class Teleprompter: ObservableObject {
     @Published var offset: CGFloat = 0
     @Published var playing = false
     @Published var wpm: Double = Prefs.wpm           // words per minute
+    /// Paused because the pointer is on the panel; resumes when it leaves.
+    @Published private(set) var pausedByHover = false
     private var wordCount = 0
     var contentHeight: CGFloat = 0
     var viewportHeight: CGFloat = 0
@@ -38,6 +40,7 @@ final class Teleprompter: ObservableObject {
 
     func play() {
         guard !isEmpty else { return }
+        pausedByHover = false
         playing = true
         last = Date()
         timer?.invalidate()
@@ -49,6 +52,15 @@ final class Teleprompter: ObservableObject {
     func pause() {
         playing = false
         timer?.invalidate(); timer = nil
+    }
+
+    /// Pointer entered or left the panel.
+    func hover(_ inside: Bool) {
+        if inside {
+            if playing { pause(); pausedByHover = true }
+        } else if pausedByHover {
+            play()
+        }
     }
 
     func changeSpeed(by delta: Double) {

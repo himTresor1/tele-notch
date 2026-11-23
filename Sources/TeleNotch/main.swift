@@ -200,6 +200,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+// Default settings must be registered before AppDelegate creates the teleprompter, which reads them
+// (otherwise a fresh install starts at 0 words per minute and the script never scrolls).
+Prefs.register()
 let app = NSApplication.shared
 let delegate = MainActor.assumeIsolated { AppDelegate() }
 app.delegate = delegate
