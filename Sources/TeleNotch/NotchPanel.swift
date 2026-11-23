@@ -124,6 +124,7 @@ struct PanelView: View {
                 Group {
                     if copilot.showingHelp { help }
                     else if copilot.showingAnswer { answer }
+                    else if teleprompter.isEmpty { emptyState }
                     else { script }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -167,7 +168,7 @@ struct PanelView: View {
                 }
             }
             .help(copilot.listening ? "Stop listening (⌃⌥L)" : "Start listening to the meeting (⌃⌥L)")
-            if !copilot.showingAnswer && !copilot.showingHelp {
+            if !copilot.showingAnswer && !copilot.showingHelp && !teleprompter.isEmpty {
                 Button(action: teleprompter.togglePlay) { Image(systemName: teleprompter.playing ? "pause.fill" : "play.fill") }
                     .help("Play / pause the script (⌃⌥P)")
                 Text("\(Int(teleprompter.wpm)) wpm").monospacedDigit().foregroundStyle(.secondary)
@@ -233,6 +234,10 @@ struct PanelView: View {
             items = copilot.streaming
                 ? [("⌃⌥P", "Back to script"), ("⌃⌥/", "Shortcuts")]
                 : [("⌃⌥↩", "Back to script"), ("⌃⌥C", "Catch up"), ("⌃⌥/", "Shortcuts")]
+        } else if teleprompter.isEmpty {
+            items = copilot.listening
+                ? [("⌃⌥↩", "Answer for me"), ("⌃⌥C", "Catch up"), ("⌃⌥E", "Add a script"), ("⌃⌥Space", "Hide")]
+                : [("⌃⌥E", "Add a script"), ("⌃⌥L", "Listen"), ("⌃⌥Space", "Hide"), ("⌃⌥/", "Shortcuts")]
         } else if !copilot.listening {
             items = [("⌃⌥P", teleprompter.playing ? "Pause" : "Play"), ("⌃⌥↑↓", "Speed"), ("⌃⌥L", "Listen"),
                      ("⌃⌥Space", "Hide"), ("⌃⌥/", "Shortcuts")]
@@ -296,6 +301,33 @@ struct PanelView: View {
         .scaleEffect(x: mirror ? -1 : 1, y: 1)
     }
 
+    /// First launch, or the script was cleared: one obvious thing to do.
+    /// Not listening → add a script (the teleprompter is the main feature); in a meeting → get an answer.
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            if copilot.listening {
+                Text("Listening to the meeting").font(.system(size: 17, weight: .semibold))
+                Button(action: copilot.answer) {
+                    Label("Answer for me  ⌃⌥↩", systemImage: "text.bubble.fill")
+                }
+                .buttonStyle(NotchPrimaryButton())
+                Text("Press it when someone asks you something.")
+                    .font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.5))
+            } else {
+                Button(action: actions.editScript) {
+                    Label("Paste your script  ⌃⌥E", systemImage: "doc.on.clipboard")
+                }
+                .buttonStyle(NotchPrimaryButton())
+                Button(action: copilot.toggleListening) {
+                    Text("In a meeting? Press ⌃⌥L to listen.")
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.55))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private var answer: some View {
         // Answers start at the top so you can begin reading the first line while the rest streams in.
         ScrollView(.vertical, showsIndicators: false) {
@@ -326,6 +358,19 @@ struct PanelView: View {
             }
             .padding(.top, 4)
         }
+    }
+}
+
+// MARK: - Primary button in the notch
+
+struct NotchPrimaryButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 16).padding(.vertical, 8)
+            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.75 : 1)))
+            .contentShape(Capsule())
     }
 }
 

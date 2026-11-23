@@ -196,7 +196,7 @@ pre .copy:hover { background: rgba(255,255,255,.18); }
   padding: 0 24px 34px; display: flex; justify-content: center;
 }
 .figure .panel {
-  position: relative; overflow: hidden; width: min(540px, 100%);
+  position: relative; overflow: hidden; isolation: isolate; width: min(540px, 100%);
   background: #000; color: #fff; border-radius: 0 0 24px 24px; padding: 12px 22px 18px;
   box-shadow: 0 20px 50px rgba(0,0,0,.22);
 }
@@ -209,12 +209,14 @@ pre .copy:hover { background: rgba(255,255,255,.18); }
 .figure .hints { position: relative; z-index: 1; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; font-size: 11px; color: rgba(255,255,255,.55); }
 .figure .hints kbd { background: rgba(255,255,255,.12); border-color: transparent; color: #fff; font-size: 10.5px; padding: 2px 5px; }
 .figure .glow {
-  position: absolute; left: 50%; top: 55%; width: 70%; height: 90%; transform: translate(-50%, -50%);
-  background: radial-gradient(closest-side, rgba(var(--teal-glow), .55), rgba(var(--teal-glow), .12) 60%, transparent);
-  filter: blur(18px); animation: drift 7s ease-in-out infinite alternate, breathe 4.5s ease-in-out infinite alternate;
+  position: absolute; left: 0; right: 0; top: 5%; height: 100%; width: 80%; margin: 0 auto;
+  background: radial-gradient(closest-side, rgba(var(--teal-glow), .5), rgba(var(--teal-glow), .18) 45%, rgba(var(--teal-glow), .05) 75%, transparent);
+  animation: glow 6s ease-in-out infinite alternate;
 }
-@keyframes drift { from { margin-left: -7%; } to { margin-left: 7%; } }
-@keyframes breathe { from { opacity: .8; scale: .94; } to { opacity: 1; scale: 1.08; } }
+@keyframes glow {
+  0% { transform: translateX(-6%) scale(.95); opacity: .8; }
+  100% { transform: translateX(6%) scale(1.06); opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) { .figure .glow { animation: none; } }
 
 /* Prev / next */

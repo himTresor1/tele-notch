@@ -83,7 +83,6 @@ enum SelfTest {
 
     static func render(_ copilot: Copilot, _ path: String) {
         let tp = Teleprompter()
-        tp.setScript("Good morning, everyone, and thanks for joining. Today I want to talk about one simple idea: what if your notes could follow you?")
         let actions = PanelActions(editScript: {}, settings: {}, transcript: {}, welcome: {}, hide: {})
         func shot(_ name: String) {
             let view = PanelView(teleprompter: tp, copilot: copilot, actions: actions, topInset: 32, notchWidth: 190)
@@ -96,6 +95,12 @@ enum SelfTest {
             try? png.write(to: URL(fileURLWithPath: file))
             log("wrote \(file)")
         }
+        tp.setScript("", save: false)
+        shot("empty")
+        copilot.listening = true
+        shot("empty-listening")
+        copilot.listening = false
+        tp.setScript("Good morning, everyone, and thanks for joining. Today I want to talk about one simple idea: what if your notes could follow you?", save: false)
         shot("script")
         copilot.listening = true
         copilot.showingAnswer = true

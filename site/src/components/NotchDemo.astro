@@ -94,23 +94,27 @@ const shortcuts = [
 
   /* The panel: black, hangs from the top edge, grows out of the notch */
   .np {
-    position: absolute; left: 50%; top: 0; width: min(470px, calc(100% - 28px));
-    transform: translateX(-50%); height: 168px; color: #fff;
+    position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; width: min(470px, calc(100% - 28px));
+    height: 168px; color: #fff; isolation: isolate;
     background: #000; border-radius: 0 0 22px 22px; overflow: hidden;
     box-shadow: 0 18px 40px rgba(0,0,0,.22);
     transition: height .45s cubic-bezier(.3,.7,.2,1), width .45s cubic-bezier(.3,.7,.2,1), border-radius .45s;
   }
   .np.collapsed { height: 26px; width: 150px; border-radius: 0 0 12px 12px; }
   .np.collapsed > :not(.bar), .np.collapsed .side { opacity: 0; }
+  /* Soft teal light behind the text. A plain radial gradient (no blur filter): blur + clipping
+     made some browsers paint half the panel white. */
   .glow {
-    position: absolute; left: 50%; top: 58%; width: 70%; height: 90%; transform: translate(-50%, -50%);
-    background: radial-gradient(closest-side, rgba(20,184,166,.55), rgba(20,184,166,.12) 60%, transparent);
-    filter: blur(18px); pointer-events: none; transition: opacity .3s;
-    animation: drift 7s ease-in-out infinite alternate, breathe 4.5s ease-in-out infinite alternate;
+    position: absolute; left: 0; right: 0; top: 8%; height: 100%; margin: 0 auto; width: 80%;
+    background: radial-gradient(closest-side, rgba(20,184,166,.5), rgba(20,184,166,.18) 45%, rgba(20,184,166,.05) 75%, transparent);
+    pointer-events: none;
+    animation: glow 6s ease-in-out infinite alternate;
   }
-  .np.streaming .glow { opacity: 1; filter: blur(14px) brightness(1.35); }
-  @keyframes drift { from { margin-left: -7%; } to { margin-left: 7%; } }
-  @keyframes breathe { from { opacity: .8; scale: .94; } to { opacity: 1; scale: 1.08; } }
+  .np.streaming .glow { background: radial-gradient(closest-side, rgba(45,212,191,.62), rgba(20,184,166,.24) 45%, rgba(20,184,166,.06) 75%, transparent); }
+  @keyframes glow {
+    0% { transform: translateX(-6%) scale(.95); opacity: .8; }
+    100% { transform: translateX(6%) scale(1.06); opacity: 1; }
+  }
 
   .bar { position: relative; z-index: 1; height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 10.5px; }
   .side { display: flex; align-items: center; gap: 7px; transition: opacity .25s; }
@@ -136,8 +140,12 @@ const shortcuts = [
 
   .content { position: absolute; z-index: 1; inset: 30px 18px 26px; }
   .content > * { position: absolute; inset: 0; transition: opacity .3s ease, transform .3s ease; }
-  .vp { overflow: hidden; mask-image: linear-gradient(transparent, #000 18%, #000 78%, transparent); }
-  .lines { will-change: transform; padding-top: 34px; }
+  .vp { overflow: hidden; }
+  /* Fade the script in and out at the edges with black overlays (instead of a mask, which some browsers paint wrong) */
+  .vp::before, .vp::after { content: ""; position: absolute; left: 0; right: 0; height: 22px; z-index: 1; pointer-events: none; }
+  .vp::before { top: 0; background: linear-gradient(#000, transparent); }
+  .vp::after { bottom: 0; background: linear-gradient(transparent, #000); }
+  .lines { padding-top: 34px; }
   .lines p { margin: 0; text-align: center; font-size: 17px; line-height: 27px; font-weight: 600; color: #fff; }
   .answer, .catch, .help { opacity: 0; transform: translateY(6px); pointer-events: none; }
   .answer { display: flex; align-items: center; justify-content: center; }

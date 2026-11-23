@@ -111,7 +111,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .togglePanel: panel.toggle()
         case .playPause:
             if copilot.showingHelp { copilot.showingHelp = false }
-            else if copilot.showingAnswer { copilot.dismissAnswer() } else { teleprompter.togglePlay() }
+            else if copilot.showingAnswer { copilot.dismissAnswer() }
+            else if teleprompter.isEmpty { showScript() }   // nothing to play yet: open the editor
+            else { teleprompter.togglePlay() }
         case .faster: teleprompter.changeSpeed(by: 10)
         case .slower: teleprompter.changeSpeed(by: -10)
         case .back: teleprompter.back()

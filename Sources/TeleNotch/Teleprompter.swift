@@ -17,8 +17,9 @@ final class Teleprompter: ObservableObject {
 
     static func countWords(_ s: String) -> Int { s.split { $0.isWhitespace }.count }
 
-    func setScript(_ s: String) {
-        Prefs.script = s
+    /// `save: false` is for self-tests, so they never overwrite the script you pasted.
+    func setScript(_ s: String, save: Bool = true) {
+        if save { Prefs.script = s }
         script = s
         wordCount = Self.countWords(s)
         offset = 0
@@ -30,9 +31,13 @@ final class Teleprompter: ObservableObject {
         return wpm / 60 * Double(contentHeight) / Double(wordCount)
     }
 
+    /// No script yet: the notch shows "Paste your script" instead.
+    var isEmpty: Bool { script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
     func togglePlay() { playing ? pause() : play() }
 
     func play() {
+        guard !isEmpty else { return }
         playing = true
         last = Date()
         timer?.invalidate()

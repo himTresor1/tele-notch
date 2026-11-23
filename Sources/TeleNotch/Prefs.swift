@@ -18,12 +18,14 @@ enum Prefs {
 
     static func register() {
         d.register(defaults: [
-            "script": "Paste your script here.\n\nOpen the script editor from the TeleNotch menu bar icon, or press ⌃⌥E.",
+            "script": "",
             "fontSize": 22.0, "wpm": 140.0, "panelWidth": 600.0, "panelHeight": 190.0, "mirror": false,
             "model": "claude-opus-5-5", "mode": CopilotMode.meeting.rawValue,
             "aboutMe": "", "meetingContext": "", "summaryInterval": 45.0, "menuBarIcon": true,
             "showHints": true, "glow": true, "onboarded": false, "consentAcknowledged": false,
         ])
+        // Versions before 0.2.3 saved a sample script; start those people with an empty one instead.
+        if d.string(forKey: "script")?.hasPrefix("Paste your script here.") == true { d.removeObject(forKey: "script") }
     }
     static var script: String { get { d.string(forKey: "script") ?? "" } set { d.set(newValue, forKey: "script") } }
     static var fontSize: Double { d.double(forKey: "fontSize") }

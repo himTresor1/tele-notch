@@ -108,11 +108,20 @@ struct ScriptEditorView: View {
             TextEditor(text: $text).font(.system(size: 15)).padding(4)
                 // Saved as you type: the notch panel updates live, no button needed.
                 .onChange(of: text) { _, t in teleprompter.setScript(t) }
+                .overlay(alignment: .topLeading) {
+                    if text.isEmpty {
+                        Text("Paste or type your script here. It scrolls in the notch at your speaking pace.")
+                            .font(.system(size: 15)).foregroundStyle(.tertiary)
+                            .padding(.horizontal, 9).padding(.vertical, 4)
+                            .allowsHitTesting(false)
+                    }
+                }
             HStack {
                 Text("\(text.split { $0.isWhitespace }.count) words · saved automatically").foregroundStyle(.secondary)
                 Spacer()
                 Button("Start Scrolling") { teleprompter.restart(); teleprompter.play() }
                     .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .padding(12)
