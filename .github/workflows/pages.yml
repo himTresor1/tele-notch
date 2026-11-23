@@ -1,14 +1,13 @@
 # Builds the website (site/, an Astro project) and publishes it to GitHub Pages.
-# Runs when the site changes on main, and whenever a release is published, so the
-# Changelog and the version on the home page pick up the new release.
+# Runs when the site changes on main. release.sh also starts it after publishing a release,
+# so the Changelog and the version on the home page pick up the new release.
+# (Not on: release: that runs from the tag, and the github-pages environment only deploys main.)
 # One-time setup (done for himTresor1/tele-notch): repo Settings → Pages → Source: "GitHub Actions".
 name: Landing page
 on:
   push:
     branches: [main]
     paths: ['site/**', '.github/workflows/pages.yml']
-  release:
-    types: [published]
   workflow_dispatch:
 permissions:
   contents: read

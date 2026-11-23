@@ -60,4 +60,6 @@ fi
 echo "→ Publishing $TAG to github.com/$REPO"
 gh release create "$TAG" release/TeleNotch.dmg release/TeleNotch.zip release/appcast.xml \
   --repo "$REPO" --title "TeleNotch $VERSION" --notes-file "$NOTES"
+# Rebuild the website from main so its Changelog and version line include this release.
+gh workflow run pages.yml --repo "$REPO" --ref main >/dev/null && echo "→ Website rebuild started"
 echo "Done. Download: https://github.com/$REPO/releases/latest/download/TeleNotch.dmg"
