@@ -2,59 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TeleNotch · Release notes</title>
-  <meta name="description" content="What's new in TeleNotch, and how to install it.">
-  <link rel="icon" href="logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css">
+  <title>TeleNotch · Changelog</title>
+  <meta name="robots" content="noindex">
+  <meta http-equiv="refresh" content="0; url=docs/changelog.html">
+  <link rel="canonical" href="docs/changelog.html">
+  <script>
+    // Old links: releases.html#install → the Installation page; everything else → the Changelog.
+    location.replace(location.hash === "#install" ? "docs/installation.html#install" : "docs/changelog.html");
+  </script>
 </head>
-<body class="notes">
-  <header class="bar">
-    <a class="brand" href="./"><img src="logo.svg" alt="" width="28" height="28"> TeleNotch</a>
-    <a class="btn dark small" data-download href="#install">Download</a>
-  </header>
-
-  <main class="page">
-    <h1>Release notes</h1>
-    <p class="sub" data-version-long>Loading…</p>
-
-    <section id="install" class="install">
-      <h2>Install in four steps</h2>
-      <ol class="steps">
-        <li>
-          <b>Download and open <span class="file">TeleNotch.dmg</span></b>
-          <span>A window opens with TeleNotch and your Applications folder.</span>
-        </li>
-        <li>
-          <b>Drag TeleNotch onto Applications</b>
-          <span>Then eject the disk image (the ⏏ next to “TeleNotch” in Finder's sidebar).</span>
-        </li>
-        <li>
-          <b>Open TeleNotch from Applications</b>
-          <span>macOS will say <q>“TeleNotch” Not Opened</q>. That's expected for apps that aren't notarized by Apple yet. Click <b>Done</b>, <em>not</em> Move to Trash.</span>
-        </li>
-        <li>
-          <b>Allow it once in System Settings</b>
-          <span>Open <b>System Settings → Privacy &amp; Security</b>, scroll down to <b>Security</b>, and next to <q>“TeleNotch” was blocked</q> click <b>Open Anyway</b>. Enter your Mac password, then click <b>Open</b>.</span>
-        </li>
-      </ol>
-      <p class="hint">You only do this once. A short guide then sets up your Anthropic API key and permissions, and TeleNotch updates itself from then on.</p>
-      <details class="dev">
-        <summary>Comfortable with Terminal?</summary>
-        <p>After step 2, this one command clears the download flag so TeleNotch opens without the warning. Only do this for apps you trust.</p>
-        <pre><code>xattr -dr com.apple.quarantine /Applications/TeleNotch.app</code></pre>
-      </details>
-    </section>
-
-    <div data-releases><p class="muted">Loading releases…</p></div>
-  </main>
-
-  <footer>
-    <span>TeleNotch · MIT License · Notch code adapted from <a href="https://github.com/morehavoc/notchpeek">morehavoc/notchpeek</a></span>
-    <a data-repo-link href="#">GitHub</a>
-  </footer>
-
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+<body>
+  <p>Moved to the <a href="docs/changelog.html">Changelog</a>.</p>
 </body>
 </html>

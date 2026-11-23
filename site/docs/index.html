@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Introduction · TeleNotch Docs</title>
+  <meta name="description" content="What TeleNotch is: a teleprompter in your MacBook's notch, with a meeting copilot that tells you what to say.">
+  <link rel="icon" href="../logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="intro">
+  <div class="wrap">
+    <article>
+      <p class="eyebrow">Get started</p>
+      <h1>Introduction</h1>
+      <p class="lead">TeleNotch puts a teleprompter in your MacBook's notch, right under the camera. When someone puts you on the spot, one shortcut tells you what to say.</p>
+
+      <div class="figure" aria-hidden="true">
+        <div class="panel">
+          <div class="glow"></div>
+          <div class="bar"><span class="pill"><i></i>Listening</span><span class="cam"></span><span class="pill say">Say this</span></div>
+          <p class="txt">I'd go with two office days. Output went up last year, so let's keep what works.</p>
+          <div class="hints"><span><kbd>⌃⌥↩</kbd> Script</span><span><kbd>⌃⌥C</kbd> Catch up</span><span><kbd>⌃⌥Space</kbd> Hide</span></div>
+        </div>
+      </div>
+
+      <h2>What TeleNotch does</h2>
+      <p>TeleNotch has two parts that share the same black panel at the top of your screen.</p>
+      <h3>The teleprompter</h3>
+      <p>Paste a script and it scrolls in the notch at the speed you set, in words per minute. Because the text sits right under the camera, you keep looking at the people you're talking to while you read. The panel asks macOS to leave it out of screen shares and recordings.</p>
+      <h3>The meeting copilot</h3>
+      <p>Turn on <b>Listen</b> and TeleNotch transcribes your microphone (<b>Me</b>) and everything your Mac plays (<b>Others</b>: Zoom, Meet, Teams, a video, anything). Transcription happens on your Mac. While you listen, Claude keeps short running notes of the meeting.</p>
+      <p>When you get asked something and lose the thread, press <kbd>⌃⌥↩</kbd>. Claude writes a two-to-four-sentence answer, in the first person and in your voice, that takes a clear side. It appears in the notch so you can read it out straight away.</p>
+
+      <h2>Who it's for</h2>
+      <ul>
+        <li><b>Presenters</b> who want their notes under the camera, not on another screen.</li>
+        <li><b>People in long meetings</b> who drift off for a minute and get asked for their view.</li>
+        <li><b>Debates and discussions</b> where you want a clear position fast.</li>
+      </ul>
+      <div class="note warn"><p>TeleNotch is not meant for job interviews or exams. Use it where getting help is fair, and tell people if you're transcribing them: in some places everyone on a call has to agree to it.</p></div>
+
+      <h2>What you need</h2>
+      <ul>
+        <li>A Mac running <b>macOS 26</b> or later. It's made for MacBooks with a notch, where the panel grows out of the notch.</li>
+        <li>Your own <b>Anthropic API key</b> for the copilot. You pay Anthropic directly for what you use; TeleNotch itself is free. The teleprompter works without a key.</li>
+        <li><b>Headphones</b> for meetings. With speakers, your mic picks up the other people too.</li>
+      </ul>
+
+      <h2>Privacy</h2>
+      <p>Audio never leaves your Mac, and transcripts stay on it. Recent transcript text is sent to Claude only when you press <b>Answer</b> or <b>Catch up</b>, and every 45 seconds for the running notes while you're listening. Your API key is stored in your Mac's Keychain.</p>
+
+      <h2>Next steps</h2>
+      <div class="cards">
+        <a class="card" href="installation.html">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+          <b>Installation</b><span>Download TeleNotch and get past macOS's first-launch warning.</span>
+        </a>
+        <a class="card" href="usage.html">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16.5" r="2.5"/></svg></div>
+          <b>How to Use</b><span>The teleprompter, the copilot, and every shortcut.</span>
+        </a>
+      </div>
+    </article>
+    <aside class="toc" aria-label="On this page"></aside>
+  </div>
+  <script src="../config.js"></script>
+  <script src="docs.js"></script>
+</body>
+</html>

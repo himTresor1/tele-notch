@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to Use · TeleNotch Docs</title>
+  <meta name="description" content="Use the TeleNotch teleprompter and meeting copilot: scripts, scroll speed, answers, catch-up, settings and shortcuts.">
+  <link rel="icon" href="../logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body data-page="usage">
+  <div class="wrap">
+    <article>
+      <p class="eyebrow">Guides</p>
+      <h1>How to Use</h1>
+      <p class="lead">Everything happens in the black panel at the top of your screen. Click its buttons, or keep your hands on the keyboard: every shortcut is <kbd>⌃</kbd> Control + <kbd>⌥</kbd> Option + one key.</p>
+
+      <h2>The notch panel</h2>
+      <p>Press <kbd>⌃⌥Space</kbd> to show or hide the panel. You can also click the <b>⌃</b> button at its top right, or use the TeleNotch icon in the menu bar.</p>
+      <ul>
+        <li><b>Left of the camera:</b> the <b>Listen</b> button, play / pause, and the scroll speed.</li>
+        <li><b>Right of the camera:</b> the <b>Answer</b> button, the <b>⋯</b> menu with everything else, and the hide button.</li>
+        <li><b>Along the bottom:</b> the shortcuts that make sense right now. You never have to memorise them.</li>
+      </ul>
+      <p>Messages, such as a missing API key or a permission that's off, appear at the bottom of the panel with a button to fix them.</p>
+
+      <h2>Teleprompter</h2>
+      <h3>Add your script</h3>
+      <p>Press <kbd>⌃⌥E</kbd> (or <b>⋯ → Edit Script…</b>) and paste or type your script. It saves as you type. Click <b>Start Scrolling</b> when you're ready.</p>
+      <h3>Control the scrolling</h3>
+      <div class="table"><table>
+        <tr><th>Shortcut</th><th>What it does</th></tr>
+        <tr><td><kbd>⌃⌥P</kbd></td><td>Play or pause.</td></tr>
+        <tr><td><kbd>⌃⌥↑</kbd> <kbd>⌃⌥↓</kbd></td><td>Faster or slower, 10 words per minute at a time. The speed shows in the panel; 140 wpm is a relaxed speaking pace.</td></tr>
+        <tr><td><kbd>⌃⌥←</kbd></td><td>Jump back a few lines.</td></tr>
+      </table></div>
+      <p>To start over from the top, choose <b>Restart Script</b> from the menu bar icon.</p>
+      <h3>Make it fit</h3>
+      <p>In <b>Settings</b> (<kbd>⌃⌥,</kbd>) you can change the text size and the panel's width and height, mirror the text for a beam-splitter teleprompter, and turn the teal glow behind the text on or off.</p>
+
+      <h2>Meeting copilot</h2>
+      <h3>Start listening</h3>
+      <p>Press <kbd>⌃⌥L</kbd> or click <b>Listen</b>. TeleNotch transcribes your mic as <b>Me</b> and your Mac's audio as <b>Others</b>, and keeps running notes of the meeting with Claude. Press it again to stop.</p>
+      <div class="note"><p>Use headphones. With speakers, your mic also picks up the other people. TeleNotch filters most of the echo, but headphones work best.</p></div>
+      <h3>Answer for me</h3>
+      <p>When someone asks you something, press <kbd>⌃⌥↩</kbd> or click <b>Answer</b>. Within about a second, an answer starts appearing in the notch, marked <b>Say this</b>. It's written in the first person, as you, and takes a clear side, so you can read it out as it is.</p>
+      <p>Press <kbd>⌃⌥↩</kbd> again, or click <b>↩ Script</b>, to go back to your script.</p>
+      <h3>Catch me up</h3>
+      <p>Drifted off? Press <kbd>⌃⌥C</kbd> for three short lines: what's being discussed, where it's heading, and whether anyone asked you something.</p>
+      <h3>Transcript and new meetings</h3>
+      <p><b>⋯ → Live Transcript…</b> shows everything that's been said. <b>⋯ → New Meeting</b> clears the transcript and notes, so the next answer doesn't mix up two meetings.</p>
+
+      <h2>Better answers</h2>
+      <p>Answers get better when Claude knows who you are and what the meeting is about. Open <b>Settings</b> (<kbd>⌃⌥,</kbd>) and fill in:</p>
+      <ul>
+        <li><b>About me:</b> your name, your role, your views, and how you talk.</li>
+        <li><b>This meeting:</b> the agenda, the goals, and who's there.</li>
+      </ul>
+      <h3>Meeting or presentation mode</h3>
+      <p>Pick a mode in Settings:</p>
+      <ul>
+        <li><b>Meeting:</b> answers draw on the conversation and your notes.</li>
+        <li><b>Presentation:</b> answers respond to the question you just heard. Your script is used only as background, so you're not pushed back to your slides.</li>
+      </ul>
+      <p>You can also choose the Claude model. Faster models put the answer on screen sooner; Opus gives the most thoughtful answers.</p>
+
+      <h2 id="shortcuts">All shortcuts</h2>
+      <p>Press <kbd>⌃⌥/</kbd> to see these in the notch.</p>
+      <div class="table"><table>
+        <tr><th>Shortcut</th><th>Action</th></tr>
+        <tr><td><kbd>⌃⌥Space</kbd></td><td>Show or hide the panel</td></tr>
+        <tr><td><kbd>⌃⌥P</kbd></td><td>Play or pause the script, or close an answer</td></tr>
+        <tr><td><kbd>⌃⌥↑</kbd> <kbd>⌃⌥↓</kbd></td><td>Scroll faster or slower</td></tr>
+        <tr><td><kbd>⌃⌥←</kbd></td><td>Jump back a few lines</td></tr>
+        <tr><td><kbd>⌃⌥E</kbd></td><td>Edit the script</td></tr>
+        <tr><td><kbd>⌃⌥L</kbd></td><td>Start or stop listening</td></tr>
+        <tr><td><kbd>⌃⌥↩</kbd></td><td>Answer for me; press again to go back to the script</td></tr>
+        <tr><td><kbd>⌃⌥C</kbd></td><td>Catch me up</td></tr>
+        <tr><td><kbd>⌃⌥/</kbd></td><td>Show every shortcut in the notch</td></tr>
+        <tr><td><kbd>⌃⌥,</kbd></td><td>Settings</td></tr>
+      </table></div>
+
+      <h2>Settings</h2>
+      <div class="table"><table>
+        <tr><th>Section</th><th>What's there</th></tr>
+        <tr><td>Claude</td><td>Your API key and the model.</td></tr>
+        <tr><td>Copilot</td><td>Mode, About me, This meeting, and how often the notes update.</td></tr>
+        <tr><td>Teleprompter</td><td>Text size, panel size, mirror text, shortcut hints, teal glow.</td></tr>
+        <tr><td>Updates</td><td>Check for updates, and whether to install them automatically.</td></tr>
+        <tr><td>General</td><td>Open at login, and the welcome guide.</td></tr>
+      </table></div>
+
+      <h2>Screen sharing and privacy</h2>
+      <p>The panel asks macOS to keep it out of screen shares and recordings, so the people you share your screen with don't see your script or answers. Check it once with your own meeting app before you rely on it.</p>
+      <p>Audio stays on your Mac. Transcript text goes to Claude only when you press Answer or Catch up, and for the running notes while you're listening. Tell people when you're transcribing them: in some places, everyone on a call has to agree to it.</p>
+    </article>
+    <aside class="toc" aria-label="On this page"></aside>
+  </div>
+  <script src="../config.js"></script>
+  <script src="docs.js"></script>
+</body>
+</html>
