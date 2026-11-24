@@ -23,6 +23,7 @@ enum SelfTest {
         case "render": render(copilot, path)
         case "devices": devices()
         case "filters": filters()
+        case "speakers": await speakers(copilot)
         default: log("unknown mode")
         }
         try? out.write(toFile: path, atomically: true, encoding: .utf8)
@@ -273,5 +274,34 @@ enum SelfTest {
         run("colleague across room (-36 dB)", -36, 60)
         run("you again, softer (-25 dB)", -25, 30)
         run("colleague again (-36 dB)", -36, 30)
+    }
+
+    // MARK: Telling the "Others" apart
+
+    static func speakers(_ copilot: Copilot) async {
+        Prefs.participantsOverride = "Priya, product lead\nTom, engineering manager\nAisha, finance"
+        let t = copilot.transcript
+        t.clear()
+        t.inject(.others, "Okay, let's get going. I want to talk about the launch date.", ago: 200)
+        t.inject(.others, "I think we should push the launch to March. The onboarding flow isn't ready and support will get buried.", ago: 190)
+        t.inject(.others, "Tom, I know you're going to disagree, so go ahead.", ago: 182)
+        t.inject(.others, "Yeah, I do. We promised February to three customers. The onboarding gaps are small, my team can patch them in two weeks.", ago: 170)
+        t.inject(.others, "Two weeks is optimistic. Last time you said two weeks it took six.", ago: 155)
+        t.inject(.others, "That was a different scope and you know it.", ago: 148)
+        t.inject(.others, "Can I jump in? From the budget side, slipping to March costs us the Q1 marketing spend we already committed. That's about forty thousand.", ago: 130)
+        t.inject(.others, "Thanks, Aisha. So the money says February too.", ago: 118)
+        t.inject(.others, "I didn't say that. I'm saying a slip has a cost, not that we should launch broken.", ago: 110)
+        t.inject(.me, "yeah the onboarding thing worries me too", ago: 95)
+        t.inject(.others, "Right. So it's me and Aisha cautious, and Tom pushing for February.", ago: 80)
+        t.inject(.others, "That's not fair, I'm pushing for keeping our word.", ago: 70)
+        t.inject(.others, "Let's hear from someone who hasn't said much. What's your take, should we hold February or move to March?", ago: 10)
+
+        await timed("NOTES") { await copilot.updateNotes(force: true); return copilot.notes }
+        await stream("CATCH UP", system: Prompts.catchUp,
+                     user: copilot.userMessage(instruction: "Catch me up on what's happening right now.", mode: .meeting))
+        await stream("ANSWER", system: Prompts.answer,
+                     user: copilot.userMessage(instruction: copilot.answerInstruction(.meeting), mode: .meeting))
+        t.clear()
+        Prefs.participantsOverride = nil
     }
 }

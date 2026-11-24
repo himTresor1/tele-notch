@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage("mode") private var mode = CopilotMode.meeting.rawValue
     @AppStorage("aboutMe") private var aboutMe = ""
     @AppStorage("meetingContext") private var meetingContext = ""
+    @AppStorage("participants") private var participants = ""
     @AppStorage("fontSize") private var fontSize = 22.0
     @AppStorage("panelWidth") private var panelWidth = 600.0
     @AppStorage("panelHeight") private var panelHeight = 190.0
@@ -49,8 +50,14 @@ struct SettingsView: View {
                     TextEditor(text: $aboutMe).frame(height: 60).font(.body)
                 }
                 VStack(alignment: .leading) {
-                    Text("This meeting (agenda, goals, who's there)")
+                    Text("This meeting (agenda, goals)")
                     TextEditor(text: $meetingContext).frame(height: 60).font(.body)
+                }
+                VStack(alignment: .leading) {
+                    Text("Who's in this meeting (one per line, e.g. \"Priya, product lead\")")
+                    TextEditor(text: $participants).frame(height: 60).font(.body)
+                    Text("Everyone else is heard as one \"Others\" voice. Names help Claude tell them apart and know who's arguing what.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 LabeledContent("Update meeting notes every") {
                     Stepper("\(Int(summaryInterval)) s", value: $summaryInterval, in: 15...300, step: 15)

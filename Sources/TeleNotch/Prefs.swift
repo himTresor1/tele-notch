@@ -21,7 +21,7 @@ enum Prefs {
             "script": "",
             "fontSize": 22.0, "wpm": 140.0, "panelWidth": 600.0, "panelHeight": 190.0, "mirror": false,
             "model": "claude-opus-5-5", "mode": CopilotMode.meeting.rawValue,
-            "aboutMe": "", "meetingContext": "", "summaryInterval": 45.0, "menuBarIcon": true,
+            "aboutMe": "", "meetingContext": "", "participants": "", "summaryInterval": 45.0, "menuBarIcon": true,
             "showHints": true, "glow": true, "nearVoiceOnly": true, "onboarded": false, "consentAcknowledged": false,
         ])
         // Versions before 0.2.3 saved a sample script; start those people with an empty one instead.
@@ -38,6 +38,10 @@ enum Prefs {
     static var mode: CopilotMode { CopilotMode(rawValue: d.string(forKey: "mode") ?? "") ?? .meeting }
     static var aboutMe: String { d.string(forKey: "aboutMe") ?? "" }
     static var meetingContext: String { d.string(forKey: "meetingContext") ?? "" }
+    /// Who's in the meeting, one per line ("Priya, product lead"), so Claude can tell the "Others" apart.
+    static var participants: String { participantsOverride ?? d.string(forKey: "participants") ?? "" }
+    /// Self-test only: use these participants without touching the saved setting.
+    nonisolated(unsafe) static var participantsOverride: String?
     static var summaryInterval: Double { max(15, d.double(forKey: "summaryInterval")) }
     static var showHints: Bool { d.bool(forKey: "showHints") }
     /// Ignore voices and noise far from the mic (see VoiceGate).
@@ -132,7 +136,9 @@ final class HotKeys {
             var id = EventHotKeyID()
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
                               nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
-            if let a = HotKeyAction(rawValue: id.id) { DispatchQueue.main.async { HotKeys.handler?(a) } }
+            // Carbon calls this on the main thread, so act right away. Hopping through the main queue
+            // meant one Objective-C exception that wedged that queue left every shortcut dead.
+            if let a = HotKeyAction(rawValue: id.id) { HotKeys.handler?(a) }
             return noErr
         }, 1, &spec, nil, nil)
         for a in HotKeyAction.allCases {

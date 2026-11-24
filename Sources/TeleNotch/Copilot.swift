@@ -11,6 +11,12 @@ enum Prompts {
     (the audio their computer plays); several different people may be speaking under "Others". Speech recognition makes \
     mistakes, so expect misheard words and missing punctuation, and work out what was meant.
 
+    Telling people apart: "Others" mixes everyone except Me, with no names. Each "Others" line is one stretch of \
+    speech between pauses, so a new line may be a new person. Work out who is speaking from the people listed as in \
+    the meeting, names people use ("Thanks, Priya", "Tom, what do you think?"), who answers whom, and what each person \
+    has argued so far. Only put a name on something when the transcript supports it; otherwise say "someone" or \
+    "one person". Never attribute a view to the wrong person.
+
     The person lost track of the conversation and has just been put on the spot. They will read your words aloud \
     straight away, word for word, from a small screen next to their camera. So:
 
@@ -21,7 +27,8 @@ enum Prompts {
     their contribution to the point being discussed right now.
     - Take a side immediately. The first sentence states a clear position ("I'd go with the second option.", "I \
     disagree, and here's why."). Commit to one view: do not list both sides, do not say "it depends", do not hedge or \
-    stall. Back it with one or two concrete reasons, using what was said in the meeting where you can. Don't make \
+    stall. When you agree or disagree with someone, you may name them, but only if you're sure who said it. Back it \
+    with one or two concrete reasons, using what was said in the meeting where you can. Don't make \
     up specific facts, projects, names or numbers that weren't mentioned; general reasoning is fine. For a factual \
     question, give your best answer plainly.
     - Be short: two to four sentences, about fifteen seconds of speech. Short, easy sentences that read well aloud.
@@ -39,9 +46,15 @@ enum Prompts {
     transcript ("Me" is the person, "Others" is everyone else, possibly several people) and running notes. Speech \
     recognition makes mistakes; work out what was meant.
 
+    Telling people apart: "Others" mixes everyone except Me, with no names. Each "Others" line is one stretch of \
+    speech between pauses, so a new line may be a new person. Work out who is speaking from the people listed as in \
+    the meeting, names people use ("Thanks, Priya", "Tom, what do you think?"), who answers whom, and what each person \
+    has argued so far. Only put a name on something when the transcript supports it; otherwise say "someone" or \
+    "one person". Never attribute a view to the wrong person.
+
     Reply with at most three short lines, each starting with "• ", written to the person:
     • what is being discussed right now
-    • where people stand (who is arguing what), or what was just decided
+    • where people stand, by name when known ("Priya wants to delay, Tom disagrees"), or what was just decided
     • if someone just asked them something, the question itself in a few words ("Asked you: four days or two?"); \
     otherwise exactly "Nothing asked of you."
     Keep each line under 25 words. Plain text, no other formatting, no preamble.
@@ -50,10 +63,21 @@ enum Prompts {
     /// Used every ~45 s in the background.
     static let notes = """
     You keep running notes of a live meeting for one participant ("Me"; everyone else appears as "Others"). The \
-    transcript comes from speech recognition, so fix obvious mishearings. Given the current notes and the newest part \
-    of the transcript, return the updated notes: the topic, decisions, each side's positions and arguments, open \
-    questions, anything asked of Me, and names or numbers that matter. Keep them under 250 words, as terse lines. \
-    Drop details that no longer matter. Output only the notes.
+    transcript comes from speech recognition, so fix obvious mishearings.
+
+    Telling people apart: "Others" mixes everyone except Me, with no names. Each "Others" line is one stretch of \
+    speech between pauses, so a new line may be a new person. Work out who is speaking from the people listed as in \
+    the meeting, names people use ("Thanks, Priya", "Tom, what do you think?"), who answers whom, and what each person \
+    has argued so far. Only put a name on something when the transcript supports it; otherwise say "someone" or \
+    "one person". Never attribute a view to the wrong person.
+
+    Given the current notes and the newest part of the transcript, return the updated notes in this shape:
+    People: one line per person you can tell apart, with their name (or "Speaker A", "Speaker B" until a name comes \
+    up), role if known, and their position so far. Keep the same labels from one update to the next, and replace \
+    "Speaker A" with a name once it's clear.
+    Then: the topic, decisions, who disagrees with whom and why, open questions, anything asked of Me, and numbers \
+    that matter.
+    Keep it under 250 words, as terse lines. Drop details that no longer matter. Output only the notes.
     """
 }
 
@@ -316,7 +340,9 @@ final class Copilot: ObservableObject {
         guard !chunk.isEmpty else { return }
         notesBusy = true
         defer { notesBusy = false }
+        let people = Prefs.participants.trimmingCharacters(in: .whitespacesAndNewlines)
         let user = """
+        \(people.isEmpty ? "" : "<people_in_this_meeting>\n\(people)\n</people_in_this_meeting>\n")
         <current_notes>
         \(notes.isEmpty ? "(none yet)" : notes)
         </current_notes>
@@ -370,6 +396,8 @@ final class Copilot: ObservableObject {
         var parts: [String] = []
         let about = Prefs.aboutMe.trimmingCharacters(in: .whitespacesAndNewlines)
         if !about.isEmpty { parts.append("<about_me>\n\(about)\n</about_me>") }
+        let people = Prefs.participants.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !people.isEmpty { parts.append("<people_in_this_meeting>\n\(people)\n</people_in_this_meeting>") }
         let ctx = Prefs.meetingContext.trimmingCharacters(in: .whitespacesAndNewlines)
         if !ctx.isEmpty && includeNotes { parts.append("<meeting_context>\n\(ctx)\n</meeting_context>") }
         if mode == .presentation {

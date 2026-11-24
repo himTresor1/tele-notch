@@ -102,10 +102,12 @@ final class Transcript: ObservableObject {
     /// The last `seconds` of the meeting, word for word.
     func recent(seconds: TimeInterval) -> String { text(since: Date().addingTimeInterval(-seconds)) }
 
+    /// Joins your consecutive lines. "Others" lines stay separate: each is a stretch of speech between pauses,
+    /// and a new one may be a different person, which Claude uses to tell people apart.
     private static func merge(_ segs: [Line]) -> [Line] {
         var out: [Line] = []
         for seg in segs {
-            if var last = out.last, last.speaker == seg.speaker { last.text += " " + seg.text; out[out.count - 1] = last }
+            if var last = out.last, last.speaker == seg.speaker, seg.speaker == .me { last.text += " " + seg.text; out[out.count - 1] = last }
             else { out.append(seg) }
         }
         return out
