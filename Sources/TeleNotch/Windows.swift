@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("mirror") private var mirror = false
     @AppStorage("summaryInterval") private var summaryInterval = 45.0
     @AppStorage("showHints") private var showHints = true
+    @AppStorage("nearVoiceOnly") private var nearVoiceOnly = true
     @AppStorage("glow") private var glow = true
     @AppStorage("SUAutomaticallyUpdate") private var autoUpdate = true
     var openWelcome: () -> Void = {}
@@ -54,7 +55,8 @@ struct SettingsView: View {
                 LabeledContent("Update meeting notes every") {
                     Stepper("\(Int(summaryInterval)) s", value: $summaryInterval, in: 15...300, step: 15)
                 }
-                Text("Use headphones: with speakers, your mic also picks up the other people, and their words show up twice.")
+                Toggle("Only hear my voice (ignore people nearby and background noise)", isOn: $nearVoiceOnly)
+                Text("Your mic keeps only the voice closest to it. Turn this off if TeleNotch misses what you say. Changes apply the next time you start listening. Use headphones: with speakers, your mic also picks up the other people.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Teleprompter") {

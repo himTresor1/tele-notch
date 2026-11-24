@@ -40,7 +40,9 @@ final class Transcript: ObservableObject {
                 self.addFinal(Line(speaker: speaker, text: t, time: Date()))
             } else {
                 // Don't show the mic's live echo of what someone else is saying right now.
-                if speaker == .me, let other = self.live[.others], Echo.isEcho(t, of: other) { self.live[.me] = nil; return }
+                if speaker == .me, let other = self.live[.others], Echo.isEcho(t, of: other) || Echo.isLooseEcho(t, of: other) {
+                    self.live[.me] = nil; return
+                }
                 self.live[speaker] = t.isEmpty ? nil : t
             }
         }
@@ -51,21 +53,28 @@ final class Transcript: ObservableObject {
     // show up a second time as "Me" and Claude would think you said them. Both transcribers hear the
     // same sentence within a few seconds of each other, in either order, so compare against the other side.
 
+    // Someone in the same room who's also on the call reaches your mic faintly, so that copy is garbled and
+    // only loosely matches what the call delivers. Within a few seconds of each other a loose match counts.
     private static let echoWindow: TimeInterval = 15
+    private static let looseWindow: TimeInterval = 8
 
     private func addFinal(_ seg: Line) {
-        let recentOthers = { () -> String in
-            self.segments.filter { $0.speaker == .others && seg.time.timeIntervalSince($0.time) < Self.echoWindow }
+        let others = { (window: TimeInterval) -> String in
+            self.segments.filter { $0.speaker == .others && abs(seg.time.timeIntervalSince($0.time)) < window }
                 .map(\.text).joined(separator: " ") + " " + (self.live[.others] ?? "")
         }
         switch seg.speaker {
         case .me:
-            if Echo.isEcho(seg.text, of: recentOthers()) { return }
+            if Echo.isEcho(seg.text, of: others(Self.echoWindow)) || Echo.isLooseEcho(seg.text, of: others(Self.looseWindow)) { return }
             segments.append(seg)
         case .others:
             // A "Me" segment that arrived first may be the echo of this one.
-            segments.removeAll { $0.speaker == .me && seg.time.timeIntervalSince($0.time) < Self.echoWindow
-                && Echo.isEcho($0.text, of: seg.text) }
+            segments.removeAll { me in
+                guard me.speaker == .me else { return false }
+                let gap = seg.time.timeIntervalSince(me.time)
+                return (gap < Self.echoWindow && Echo.isEcho(me.text, of: seg.text))
+                    || (gap < Self.looseWindow && Echo.isLooseEcho(me.text, of: seg.text))
+            }
             segments.append(seg)
         }
     }
@@ -119,6 +128,22 @@ enum Echo {
         guard !bag.isEmpty else { return false }
         let hits = m.filter { bag.contains($0) }.count
         return Double(hits) / Double(m.count) >= 0.7
+    }
+
+    /// Little words every sentence shares, ignored by the loose match.
+    private static let common: Set<String> = ["the", "a", "an", "and", "or", "but", "so", "to", "of", "in", "on", "at",
+        "for", "with", "is", "it", "its", "it's", "that", "this", "be", "was", "are", "i", "you", "we", "they", "he",
+        "she", "me", "my", "your", "our", "do", "not", "yeah", "yes", "no", "ok", "okay", "um", "uh", "like", "just",
+        "have", "has", "if", "what", "there", "then", "can", "will", "think", "know", "right", "well"]
+
+    /// A faint, half-misheard copy: at least 3 meaningful words, and half of them also in `others`.
+    static func isLooseEcho(_ mine: String, of others: String) -> Bool {
+        let m = words(mine).filter { !common.contains($0) }
+        guard m.count >= 3 else { return false }
+        let bag = Set(words(others).filter { !common.contains($0) })
+        guard !bag.isEmpty else { return false }
+        let hits = m.filter { bag.contains($0) }.count
+        return Double(hits) / Double(m.count) >= 0.5
     }
 }
 

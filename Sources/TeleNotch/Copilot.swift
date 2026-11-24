@@ -110,6 +110,7 @@ final class Copilot: ObservableObject {
     private var restartAttempts = 0
     private var hearsOthers = false
     private let micBeat = Heartbeat()
+    let gate = VoiceGate()
     private let sysBeat = Heartbeat()
     private var notesTimer: Timer?
     private var notesCoveredUntil = Date.distantPast
@@ -210,8 +211,9 @@ final class Copilot: ObservableObject {
     private func startCapture() throws -> Bool {
         guard let m = micT, let s = sysT else { return false }
         micBeat.beat(); sysBeat.beat()
-        let micBeat = micBeat, sysBeat = sysBeat
-        try mic.start { micBeat.beat(); m.feed($0) }
+        let micBeat = micBeat, sysBeat = sysBeat, gate = gate
+        let filter = Prefs.nearVoiceOnly
+        try mic.start { micBeat.beat(); m.feed(filter ? gate.process($0) : $0) }
         mic.onConfigurationChange = { [weak self] in self?.scheduleRestart() }
         do {
             try system.start { sysBeat.beat(); s.feed($0) }

@@ -22,6 +22,7 @@ enum SelfTest {
         case "full": await full(copilot, audio)
         case "render": render(copilot, path)
         case "devices": devices()
+        case "filters": filters()
         default: log("unknown mode")
         }
         try? out.write(toFile: path, atomically: true, encoding: .utf8)
@@ -229,5 +230,48 @@ enum SelfTest {
         } catch {
             log("\(mode) capture FAILED: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: Background-voice filters
+
+    static func filters() {
+        // Echo matching: the colleague's sentence as the call delivers it, and as the room mic garbles it.
+        let call = "We should move the launch to March so the design team has time to finish onboarding"
+        let cases: [(String, String, Bool)] = [
+            ("we should move the launch to march so the design team", call, true),          // clear room copy
+            ("should move a lunch to march the design team has time", call, true),          // garbled room copy
+            ("move lunch march design team finishing on boarding", call, true),             // very garbled
+            ("I think we can ship the pricing page next week", call, false),                // you, other words
+            ("yeah I think so too, that makes sense to me", call, false),                   // you, filler
+            ("so the design is fine but I worry about march", call, false),                 // you, reacting to it
+        ]
+        var ok = 0
+        for (mine, others, expect) in cases {
+            let got = Echo.isEcho(mine, of: others) || Echo.isLooseEcho(mine, of: others)
+            if got == expect { ok += 1 }
+            log("\(got == expect ? "PASS" : "FAIL")  dropped=\(got)  expected=\(expect)  \"\(mine)\"")
+        }
+        log("echo: \(ok)/\(cases.count)\n")
+
+        // Gate: 48 kHz mono buffers of ~85 ms. You at -20 dBFS, a colleague across the room at -36, room noise at -55.
+        let fmt = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
+        func buf(_ db: Float) -> AVAudioPCMBuffer {
+            let b = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: 4096)!; b.frameLength = 4096
+            let amp = powf(10, db / 20) * sqrtf(2)
+            for i in 0..<4096 { b.floatChannelData![0][i] = amp * sinf(Float(i) * 0.06) + Float.random(in: -0.0015...0.0015) }
+            return b
+        }
+        let gate = VoiceGate()
+        func run(_ label: String, _ db: Float, _ count: Int) {
+            var open = 0
+            for _ in 0..<count { let b = gate.process(buf(db)); if b.floatChannelData![0][100] != 0 || b.floatChannelData![0][2000] != 0 { open += 1 } }
+            log("gate  \(label.padding(toLength: 34, withPad: " ", startingAt: 0)) \(open)/\(count) buffers kept")
+        }
+        run("room noise (-55 dB)", -55, 30)
+        run("you speaking (-20 dB)", -20, 30)
+        run("pause (-55 dB)", -55, 30)
+        run("colleague across room (-36 dB)", -36, 60)
+        run("you again, softer (-25 dB)", -25, 30)
+        run("colleague again (-36 dB)", -36, 30)
     }
 }

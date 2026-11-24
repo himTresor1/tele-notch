@@ -33,8 +33,21 @@ final class NotchPanelWindow: NSPanel {
 }
 
 /// Clicks on the panel work straight away, without first activating TeleNotch.
+/// Hover is handled here in AppKit and never handed to SwiftUI: SwiftUI's hover hit-testing crashed the
+/// app (EXC_BAD_ACCESS in HoverEventDispatcher) when the pointer entered the panel while its content changed.
 final class ClickThroughHostingView<V: View>: NSHostingView<V> {
+    var onHover: ((Bool) -> Void)?
+    private var area: NSTrackingArea?
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let area { removeTrackingArea(area) }
+        let a = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil)
+        addTrackingArea(a); area = a
+    }
+    override func mouseEntered(with event: NSEvent) { onHover?(true) }
+    override func mouseExited(with event: NSEvent) { onHover?(false) }
+    override func mouseMoved(with event: NSEvent) {}
 }
 
 /// What the panel's buttons and menu can do.
@@ -125,9 +138,15 @@ final class NotchPanel {
         // left AppKit's tooltip tracking pointing at freed views, which crashed the app.
         if let host { host.rootView = view } else {
             let h = ClickThroughHostingView(rootView: view)
+            h.onHover = { [weak self] inside in self?.pointerInside(inside) }
             host = h
             p.contentView = h
         }
+    }
+
+    /// Pointer on the panel pauses the script; moving away picks it up again.
+    private func pointerInside(_ inside: Bool) {
+        teleprompter.hover(inside && state.open && !copilot.showingAnswer && !copilot.showingHelp)
     }
 
     private func makePanel() -> NotchPanelWindow {
@@ -179,8 +198,6 @@ struct PanelView: View {
             .background(panelBackground)
             .clipShape(shape)
             .contentShape(shape)
-            // Pointer on the panel pauses the script; moving away picks it up again.
-            .onHover { inside in teleprompter.hover(inside && state.open && !copilot.showingAnswer && !copilot.showingHelp) }
             .environment(\.colorScheme, .dark)
     }
 
@@ -227,7 +244,7 @@ struct PanelView: View {
             // Left of the notch: listening + playback
             Button(action: copilot.toggleListening) {
                 HStack(spacing: 5) {
-                    if copilot.starting { ProgressView().controlSize(.mini) }
+                    if copilot.starting { Spinner() }
                     else { Circle().fill(copilot.listening ? Color.red : Color.gray.opacity(0.6)).frame(width: 7, height: 7) }
                     Text(copilot.listening ? "Listening" : copilot.starting ? "Starting…" : "Listen")
                 }
@@ -242,7 +259,7 @@ struct PanelView: View {
             HStack(spacing: 10) {
             // Right of the notch: answer + menu
             if copilot.showingAnswer {
-                if copilot.streaming { ProgressView().controlSize(.mini) }
+                if copilot.streaming { Spinner() }
                 Text(copilot.answerTitle).foregroundStyle(.secondary)
                 Button(action: copilot.dismissAnswer) { Label("Script", systemImage: "arrow.uturn.backward") }
             } else if copilot.showingHelp {
@@ -252,25 +269,7 @@ struct PanelView: View {
                     Label("Answer", systemImage: "text.bubble.fill")
                 }
             }
-            Menu {
-                Button("Edit Script…  ⌃⌥E", action: actions.editScript)
-                Button("Catch Me Up  ⌃⌥C", action: copilot.catchUp)
-                Button("Live Transcript…", action: actions.transcript)
-                Button("New Meeting (clear transcript)", action: copilot.newMeeting)
-                Divider()
-                Button("All Shortcuts  ⌃⌥/") { copilot.showingHelp.toggle() }
-                Button("Welcome Guide…", action: actions.welcome)
-                Button("Settings…  ⌃⌥,", action: actions.settings)
-                Button("Check for Updates…") { Updates.shared.checkNow() }
-                Divider()
-                Button("Hide Panel  ⌃⌥Space", action: actions.hide)
-                Button("Quit TeleNotch") { NSApp.terminate(nil) }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
+            Button(action: showMenu) { Image(systemName: "ellipsis.circle") }
             Button(action: actions.hide) { Image(systemName: "chevron.up") }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -389,7 +388,8 @@ struct PanelView: View {
 
     private var answer: some View {
         // Answers start at the top so you can begin reading the first line while the rest streams in.
-        ScrollView(.vertical, showsIndicators: false) {
+        // Plain stacks, no ScrollView: native scroll views inside the panel crashed SwiftUI's hit-testing.
+        Group {
             VStack(alignment: .leading, spacing: 6) {
                 if let err = copilot.error {
                     Text(err).font(.system(size: 14)).foregroundStyle(.orange)
@@ -398,14 +398,36 @@ struct PanelView: View {
                     .font(.system(size: fontSize, weight: .semibold))
                     .foregroundStyle(copilot.answerText.isEmpty ? .secondary : .primary)
                     .lineSpacing(fontSize * 0.2)
+                    .minimumScaleFactor(0.6)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .clipped()
+    }
+
+    /// The ⋯ menu, as a standard AppKit menu. A SwiftUI Menu embeds a native pop-up button, which crashed
+    /// SwiftUI's hit-testing when the pointer met the panel while it redrew.
+    private func showMenu() {
+        let m = ClosureMenu()
+        m.add("Edit Script…  ⌃⌥E", actions.editScript)
+        m.add("Catch Me Up  ⌃⌥C", copilot.catchUp)
+        m.add("Live Transcript…", actions.transcript)
+        m.add("New Meeting (clear transcript)", copilot.newMeeting)
+        m.menu.addItem(.separator())
+        m.add("All Shortcuts  ⌃⌥/") { copilot.showingHelp.toggle() }
+        m.add("Welcome Guide…", actions.welcome)
+        m.add("Settings…  ⌃⌥,", actions.settings)
+        m.add("Check for Updates…") { Updates.shared.checkNow() }
+        m.menu.addItem(.separator())
+        m.add("Hide Panel  ⌃⌥Space", actions.hide)
+        m.add("Quit TeleNotch") { NSApp.terminate(nil) }
+        m.popUpAtPointer()
     }
 
     private var help: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        Group {
             LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)],
                       alignment: .leading, spacing: 6) {
                 ForEach(HotKeyAction.allCases, id: \.rawValue) { a in
@@ -417,6 +439,39 @@ struct PanelView: View {
             }
             .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .clipped()
+    }
+}
+
+/// A small spinner drawn by SwiftUI. ProgressView is a native NSProgressIndicator on macOS, and
+/// adding/removing it while the pointer was over the panel crashed SwiftUI's hit-testing.
+struct Spinner: View {
+    @State private var spin = false
+    var body: some View {
+        Circle().trim(from: 0, to: 0.7)
+            .stroke(Color.white.opacity(0.8), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+            .frame(width: 9, height: 9)
+            .rotationEffect(.degrees(spin ? 360 : 0))
+            .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: spin)
+            .onAppear { spin = true }
+    }
+}
+
+/// An NSMenu whose items run closures.
+@MainActor
+final class ClosureMenu: NSObject {
+    let menu = NSMenu()
+    private var actions: [() -> Void] = []
+    func add(_ title: String, _ action: @escaping () -> Void) {
+        let i = NSMenuItem(title: title, action: #selector(run(_:)), keyEquivalent: "")
+        i.target = self; i.tag = actions.count
+        actions.append(action); menu.addItem(i)
+    }
+    @objc private func run(_ sender: NSMenuItem) { actions[sender.tag]() }
+    func popUpAtPointer() {
+        // popUp blocks until the menu closes, which keeps self (the items' target) alive meanwhile.
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 }
 

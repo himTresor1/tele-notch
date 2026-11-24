@@ -110,50 +110,84 @@ final class Heartbeat: @unchecked Sendable {
 // MARK: - Microphone ("Me")
 
 final class MicCapture {
-    private var engine: AVAudioEngine?
-    private var observer: NSObjectProtocol?
+    // Records straight from the mic through Core Audio, like the system-audio capture. AVAudioEngine kept
+    // the old device's format after switching away from a Bluetooth headset, which made starts and restarts
+    // fail ("Couldn't read the audio format") or raise exceptions.
+    private var device = AudioDeviceID(kAudioObjectUnknown)
+    private var procID: AudioDeviceIOProcID?
+    private var rateListener: AudioObjectPropertyListenerBlock?
+    private let queue = DispatchQueue(label: "telenotch.mic", qos: .userInitiated)
     /// The microphone in use, e.g. "MacBook Air Microphone".
     private(set) var deviceName = ""
     /// True when the default mic was a Bluetooth headset and we used the built-in mic instead.
     private(set) var avoidedBluetooth = false
-    /// The engine stopped because the audio hardware changed underneath it.
+    /// The mic's format changed or it went away underneath us.
     var onConfigurationChange: (() -> Void)?
 
     func start(_ onBuffer: @escaping BufferHandler) throws {
-        let e = AVAudioEngine()
-        let input = e.inputNode
-        // Recording from a Bluetooth headset's mic switches it into low-quality "call mode", which also
-        // changes what it plays and breaks the system-audio capture. Use the Mac's own mic instead.
-        var device = AudioDevices.defaultInput()
-        avoidedBluetooth = false
-        if let d = device, AudioDevices.isBluetooth(d), let builtIn = AudioDevices.builtInInput(), let unit = input.audioUnit {
-            var id = builtIn
-            if AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
-                                    &id, UInt32(MemoryLayout<AudioDeviceID>.size)) == noErr {
-                device = builtIn
-                avoidedBluetooth = true
+        // A device that's just switching can briefly report no format; try again a moment later.
+        var lastError: Error = CaptureError.noFormat
+        for attempt in 0..<4 {
+            do { try startOnce(onBuffer); return } catch {
+                lastError = error
+                NSLog("TeleNotch mic start attempt \(attempt + 1) failed: \(error.localizedDescription)")
+                stop()
+                if attempt < 3 { Thread.sleep(forTimeInterval: 0.3) }
             }
         }
-        deviceName = device.map(AudioDevices.name) ?? "microphone"
+        throw lastError
+    }
 
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw CaptureError.noFormat }
-        input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in onBuffer(buffer) }
-        e.prepare()
-        try e.start()
-        engine = e
-        observer = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: e, queue: .main) { [weak self] _ in
-            self?.onConfigurationChange?()
+    private func startOnce(_ onBuffer: @escaping BufferHandler) throws {
+        guard var id = AudioDevices.defaultInput() else { throw CaptureError.osStatus("Finding the microphone", -1) }
+        avoidedBluetooth = false
+        // Recording from a Bluetooth headset's mic switches it into low-quality "call mode", which also
+        // changes what it plays and breaks the system-audio capture. Use the Mac's own mic instead.
+        if AudioDevices.isBluetooth(id), let builtIn = AudioDevices.builtInInput() {
+            id = builtIn
+            avoidedBluetooth = true
         }
+        deviceName = AudioDevices.name(id)
+
+        var asbd = AudioStreamBasicDescription()
+        var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreamFormat, mScope: kAudioObjectPropertyScopeInput,
+                                              mElement: kAudioObjectPropertyElementMain)
+        try check("Reading the microphone format", AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &asbd))
+        guard asbd.mSampleRate > 0, asbd.mChannelsPerFrame > 0, let format = AVAudioFormat(streamDescription: &asbd)
+        else { throw CaptureError.noFormat }
+
+        device = id
+        try check("Starting the microphone callback", AudioDeviceCreateIOProcIDWithBlock(&procID, id, queue) { _, inInput, _, _, _ in
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, bufferListNoCopy: inInput, deallocator: nil),
+                  buffer.frameLength > 0, let copy = buffer.deepCopy() else { return }
+            onBuffer(copy)
+        })
+        // If the mic's sample rate changes, the format above is wrong: restart.
+        var rateAddr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyNominalSampleRate, mScope: kAudioObjectPropertyScopeGlobal,
+                                                  mElement: kAudioObjectPropertyElementMain)
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.onConfigurationChange?() }
+        if AudioObjectAddPropertyListenerBlock(id, &rateAddr, .main, block) == noErr { rateListener = block }
+        try check("Starting the microphone", AudioDeviceStart(id, procID))
     }
 
     func stop() {
-        if let observer { NotificationCenter.default.removeObserver(observer) }
-        observer = nil
-        engine?.inputNode.removeTap(onBus: 0)
-        engine?.stop()
-        engine = nil
+        guard device != kAudioObjectUnknown else { return }
+        if let rateListener {
+            var rateAddr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyNominalSampleRate, mScope: kAudioObjectPropertyScopeGlobal,
+                                                      mElement: kAudioObjectPropertyElementMain)
+            AudioObjectRemovePropertyListenerBlock(device, &rateAddr, .main, rateListener)
+        }
+        rateListener = nil
+        if let procID {
+            AudioDeviceStop(device, procID)
+            AudioDeviceDestroyIOProcID(device, procID)
+        }
+        procID = nil
+        device = AudioDeviceID(kAudioObjectUnknown)
     }
+
+    deinit { stop() }
 }
 
 // MARK: - Everything the Mac plays ("Others"), via a Core Audio process tap (macOS 14.4+)
