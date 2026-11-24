@@ -1,4 +1,5 @@
 import AVFAudio
+import CoreMedia
 import Foundation
 import Speech
 
@@ -9,6 +10,10 @@ struct Line: Identifiable {
     let speaker: Speaker
     var text: String
     let time: Date
+    /// Where this speech sits on its transcriber's audio clock (seconds), for matching voices.
+    var audio: ClosedRange<Double>? = nil
+    /// The voice, once fixed (see Transcript.freezeVoices).
+    var voice: Int? = nil
 }
 
 /// The meeting so far: finished segments plus one in-progress segment per speaker.
@@ -16,28 +21,43 @@ final class Transcript: ObservableObject {
     /// Each finished piece of speech, in order. Echoes of "Others" picked up by the mic are removed.
     @Published private(set) var segments: [Line] = []
     @Published private(set) var live: [Speaker: String] = [:]
+    /// Finds which voice spoke during a stretch of "Others" audio (set while listening).
+    var voiceOf: ((Double, Double) -> Int?)?
+    /// Voices get letters in the order they first speak: Speaker A, Speaker B…
+    private var letters: [Int: String] = [:]
+
+    /// "Me", "Speaker A", "Speaker B"… or "Others" when the voice isn't known.
+    func label(_ line: Line) -> String {
+        guard line.speaker == .others,
+              let v = line.voice ?? line.audio.flatMap({ voiceOf?($0.lowerBound, $0.upperBound) }) else { return line.speaker.rawValue }
+        if let l = letters[v] { return l }
+        let l = "Speaker " + String(UnicodeScalar(UInt8(65 + min(letters.count, 25))))
+        letters[v] = l
+        return l
+    }
 
     /// Segments merged into readable lines while the same person keeps talking.
-    var lines: [Line] {
-        var out: [Line] = []
+    var lines: [(line: Line, label: String)] {
+        var out: [(line: Line, label: String)] = []
         for seg in segments {
-            if var last = out.last, last.speaker == seg.speaker, seg.time.timeIntervalSince(last.time) < 20 {
-                last.text += " " + seg.text
+            let l = label(seg)
+            if var last = out.last, last.label == l, l != Speaker.others.rawValue, seg.time.timeIntervalSince(last.line.time) < 20 {
+                last.line.text += " " + seg.text
                 out[out.count - 1] = last
             } else {
-                out.append(seg)
+                out.append((seg, l))
             }
         }
         return out
     }
 
-    func update(_ speaker: Speaker, text: String, isFinal: Bool) {
+    func update(_ speaker: Speaker, text: String, isFinal: Bool, audio: ClosedRange<Double>? = nil) {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         DispatchQueue.main.async {
             if isFinal {
                 self.live[speaker] = nil
                 guard !t.isEmpty else { return }
-                self.addFinal(Line(speaker: speaker, text: t, time: Date()))
+                self.addFinal(Line(speaker: speaker, text: t, time: Date(), audio: audio))
             } else {
                 // Don't show the mic's live echo of what someone else is saying right now.
                 if speaker == .me, let other = self.live[.others], Echo.isEcho(t, of: other) || Echo.isLooseEcho(t, of: other) {
@@ -79,7 +99,15 @@ final class Transcript: ObservableObject {
         }
     }
 
-    func clear() { segments = []; live = [:] }
+    /// Fixes each "Others" line's voice before the voice timeline is thrown away (when listening stops).
+    func freezeVoices() {
+        guard let voiceOf else { return }
+        for i in segments.indices where segments[i].speaker == .others && segments[i].voice == nil {
+            if let a = segments[i].audio { segments[i].voice = voiceOf(a.lowerBound, a.upperBound) }
+        }
+    }
+
+    func clear() { segments = []; live = [:]; letters = [:] }
 
     /// For the self-test: add a finished segment directly, `ago` seconds in the past.
     func inject(_ speaker: Speaker, _ text: String, ago: TimeInterval) {
@@ -88,15 +116,15 @@ final class Transcript: ObservableObject {
 
     /// Plain-text transcript of what was said after `since`, plus whatever is still being said.
     func text(since: Date = .distantPast) -> String {
-        var out = Transcript.merge(segments.filter { $0.time >= since }).map { "\($0.speaker.rawValue): \($0.text)" }
+        var out = merge(segments.filter { $0.time >= since }).map { "\(label($0)): \($0.text)" }
         for s in [Speaker.others, .me] { if let l = live[s] { out.append("\(s.rawValue): \(l) …") } }
         return out.joined(separator: "\n")
     }
 
     /// Finished speech between two times (used for the rolling notes).
     func text(from: Date, to: Date) -> String {
-        Transcript.merge(segments.filter { $0.time >= from && $0.time < to })
-            .map { "\($0.speaker.rawValue): \($0.text)" }.joined(separator: "\n")
+        merge(segments.filter { $0.time >= from && $0.time < to })
+            .map { "\(label($0)): \($0.text)" }.joined(separator: "\n")
     }
 
     /// The last `seconds` of the meeting, word for word.
@@ -104,7 +132,7 @@ final class Transcript: ObservableObject {
 
     /// Joins your consecutive lines. "Others" lines stay separate: each is a stretch of speech between pauses,
     /// and a new one may be a different person, which Claude uses to tell people apart.
-    private static func merge(_ segs: [Line]) -> [Line] {
+    private func merge(_ segs: [Line]) -> [Line] {
         var out: [Line] = []
         for seg in segs {
             if var last = out.last, last.speaker == seg.speaker, seg.speaker == .me { last.text += " " + seg.text; out[out.count - 1] = last }
@@ -197,7 +225,10 @@ final class StreamTranscriber {
         resultsTask = Task {
             do {
                 for try await r in module.results {
-                    transcript.update(speaker, text: String(r.text.characters), isFinal: r.isFinal)
+                    let range = r.range
+                    let audio: ClosedRange<Double>? = range.start.isNumeric && range.end.isNumeric && range.end.seconds > range.start.seconds
+                        ? range.start.seconds...range.end.seconds : nil
+                    transcript.update(speaker, text: String(r.text.characters), isFinal: r.isFinal, audio: audio)
                 }
             } catch {
                 NSLog("TeleNotch transcription (\(speaker.rawValue)) ended: \(error)")

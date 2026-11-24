@@ -11,11 +11,13 @@ enum Prompts {
     (the audio their computer plays); several different people may be speaking under "Others". Speech recognition makes \
     mistakes, so expect misheard words and missing punctuation, and work out what was meant.
 
-    Telling people apart: "Others" mixes everyone except Me, with no names. Each "Others" line is one stretch of \
-    speech between pauses, so a new line may be a new person. Work out who is speaking from the people listed as in \
-    the meeting, names people use ("Thanks, Priya", "Tom, what do you think?"), who answers whom, and what each person \
-    has argued so far. Only put a name on something when the transcript supports it; otherwise say "someone" or \
-    "one person". Never attribute a view to the wrong person.
+    Telling people apart: other people's lines are labelled "Speaker A", "Speaker B"… when TeleNotch could tell \
+    their voices apart by sound (the same letter is the same voice all meeting), or "Others" when it couldn't. \
+    The letters aren't names. Work out who each one is from the people listed as in the meeting, names people use \
+    ("Thanks, Priya" means the next voice is likely Priya; "Tom, what do you think?" means the answer is likely Tom) \
+    and what each voice has argued. Voice separation can occasionally mix two people up, so let the words win when \
+    they clearly contradict a label. Only name someone when you're fairly sure; otherwise say "someone". Never \
+    attribute a view to the wrong person.
 
     The person lost track of the conversation and has just been put on the spot. They will read your words aloud \
     straight away, word for word, from a small screen next to their camera. So:
@@ -46,11 +48,13 @@ enum Prompts {
     transcript ("Me" is the person, "Others" is everyone else, possibly several people) and running notes. Speech \
     recognition makes mistakes; work out what was meant.
 
-    Telling people apart: "Others" mixes everyone except Me, with no names. Each "Others" line is one stretch of \
-    speech between pauses, so a new line may be a new person. Work out who is speaking from the people listed as in \
-    the meeting, names people use ("Thanks, Priya", "Tom, what do you think?"), who answers whom, and what each person \
-    has argued so far. Only put a name on something when the transcript supports it; otherwise say "someone" or \
-    "one person". Never attribute a view to the wrong person.
+    Telling people apart: other people's lines are labelled "Speaker A", "Speaker B"… when TeleNotch could tell \
+    their voices apart by sound (the same letter is the same voice all meeting), or "Others" when it couldn't. \
+    The letters aren't names. Work out who each one is from the people listed as in the meeting, names people use \
+    ("Thanks, Priya" means the next voice is likely Priya; "Tom, what do you think?" means the answer is likely Tom) \
+    and what each voice has argued. Voice separation can occasionally mix two people up, so let the words win when \
+    they clearly contradict a label. Only name someone when you're fairly sure; otherwise say "someone". Never \
+    attribute a view to the wrong person.
 
     Reply with at most three short lines, each starting with "• ", written to the person:
     • what is being discussed right now
@@ -65,16 +69,18 @@ enum Prompts {
     You keep running notes of a live meeting for one participant ("Me"; everyone else appears as "Others"). The \
     transcript comes from speech recognition, so fix obvious mishearings.
 
-    Telling people apart: "Others" mixes everyone except Me, with no names. Each "Others" line is one stretch of \
-    speech between pauses, so a new line may be a new person. Work out who is speaking from the people listed as in \
-    the meeting, names people use ("Thanks, Priya", "Tom, what do you think?"), who answers whom, and what each person \
-    has argued so far. Only put a name on something when the transcript supports it; otherwise say "someone" or \
-    "one person". Never attribute a view to the wrong person.
+    Telling people apart: other people's lines are labelled "Speaker A", "Speaker B"… when TeleNotch could tell \
+    their voices apart by sound (the same letter is the same voice all meeting), or "Others" when it couldn't. \
+    The letters aren't names. Work out who each one is from the people listed as in the meeting, names people use \
+    ("Thanks, Priya" means the next voice is likely Priya; "Tom, what do you think?" means the answer is likely Tom) \
+    and what each voice has argued. Voice separation can occasionally mix two people up, so let the words win when \
+    they clearly contradict a label. Only name someone when you're fairly sure; otherwise say "someone". Never \
+    attribute a view to the wrong person.
 
     Given the current notes and the newest part of the transcript, return the updated notes in this shape:
-    People: one line per person you can tell apart, with their name (or "Speaker A", "Speaker B" until a name comes \
-    up), role if known, and their position so far. Keep the same labels from one update to the next, and replace \
-    "Speaker A" with a name once it's clear.
+    People: one line per voice, like "Speaker A = Priya (product lead): wants March, worried about support". \
+    Write "Speaker A = ?" until a name is clear. Keep these mappings from one update to the next; they tell later \
+    answers who each voice is.
     Then: the topic, decisions, who disagrees with whom and why, open questions, anything asked of Me, and numbers \
     that matter.
     Keep it under 250 words, as terse lines. Drop details that no longer matter. Output only the notes.
@@ -135,6 +141,7 @@ final class Copilot: ObservableObject {
     private var hearsOthers = false
     private let micBeat = Heartbeat()
     let gate = VoiceGate()
+    let speakers = SpeakerTracker()
     private let sysBeat = Heartbeat()
     private var notesTimer: Timer?
     private var notesCoveredUntil = Date.distantPast
@@ -195,6 +202,11 @@ final class Copilot: ObservableObject {
             try await m.start(locale: locale)
             try await s.start(locale: locale)
             micT = m; sysT = s
+            if Prefs.separateVoices {
+                speakers.onStatus = { [weak self] in self?.notify($0, .info, seconds: 8) }
+                speakers.start()
+                transcript.voiceOf = { [speakers] in speakers.voice(from: $0, to: $1) }
+            }
             let sysOK = try startCapture()
             listening = true
             notesCoveredUntil = Date()
@@ -224,6 +236,9 @@ final class Copilot: ObservableObject {
         system.stop()
         await micT?.stop(); await sysT?.stop()
         micT = nil; sysT = nil
+        transcript.freezeVoices()
+        speakers.stop()
+        transcript.voiceOf = nil
         notesTimer?.invalidate(); notesTimer = nil
         listening = false
         if was { status = "Not listening"; notify("Stopped listening.") }
@@ -240,7 +255,8 @@ final class Copilot: ObservableObject {
         try mic.start { micBeat.beat(); m.feed(filter ? gate.process($0) : $0) }
         mic.onConfigurationChange = { [weak self] in self?.scheduleRestart() }
         do {
-            try system.start { sysBeat.beat(); s.feed($0) }
+            let speakers = speakers, separate = Prefs.separateVoices
+            try system.start { sysBeat.beat(); s.feed($0); if separate { speakers.feed($0) } }
             hearsOthers = true
         } catch {
             hearsOthers = false

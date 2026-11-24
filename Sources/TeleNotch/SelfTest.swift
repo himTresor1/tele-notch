@@ -24,6 +24,7 @@ enum SelfTest {
         case "devices": devices()
         case "filters": filters()
         case "speakers": await speakers(copilot)
+        case "diarize": await diarize(audio, copilot)
         default: log("unknown mode")
         }
         try? out.write(toFile: path, atomically: true, encoding: .utf8)
@@ -303,5 +304,69 @@ enum SelfTest {
                      user: copilot.userMessage(instruction: copilot.answerInstruction(.meeting), mode: .meeting))
         t.clear()
         Prefs.participantsOverride = nil
+    }
+
+    // MARK: Voices apart: audio files in a folder, played in order as the "Others" side
+
+    static func diarize(_ dir: String?, _ copilot: Copilot) async {
+        guard let dir, let names = try? FileManager.default.contentsOfDirectory(atPath: dir).filter({ $0.hasSuffix(".aiff") || $0.hasSuffix(".wav") }).sorted(),
+              !names.isEmpty else { log("no audio folder"); return }
+        do {
+            let transcript = Transcript()
+            let tracker = SpeakerTracker()
+            let locale = try await StreamTranscriber.locale()
+            let st = StreamTranscriber(speaker: .others, transcript: transcript)
+            try await st.start(locale: locale)
+            let start = Date()
+            tracker.start()
+            transcript.voiceOf = { tracker.voice(from: $0, to: $1) }
+            // Give the model time to load (first run downloads it), feeding silence like a quiet call.
+            let fmt = AVAudioFormat(standardFormatWithSampleRate: 22050, channels: 1)!
+            func silence(_ seconds: Double) async {
+                for _ in 0..<Int(seconds * 22050 / 2205) {
+                    let b = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: 2205)!; b.frameLength = 2205
+                    st.feed(b); tracker.feed(b)
+                    try? await Task.sleep(for: .milliseconds(20))
+                }
+            }
+            await silence(1)
+            var waited = 0
+            while !tracker.isReady && waited < 240 { await silence(0.5); waited += 1 }
+            await silence(1)
+            log("model ready after \(String(format: "%.1f", Date().timeIntervalSince(start))) s (or still loading)")
+            for n in names {
+                let f = try AVAudioFile(forReading: URL(fileURLWithPath: dir).appendingPathComponent(n))
+                while f.framePosition < f.length {
+                    guard let b = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: 2205) else { break }
+                    try f.read(into: b, frameCount: AVAudioFrameCount(min(2205, f.length - f.framePosition)))
+                    if b.frameLength == 0 { break }
+                    st.feed(b); tracker.feed(b)
+                    try? await Task.sleep(for: .milliseconds(25))
+                }
+                await silence(0.8)
+            }
+            await silence(4)
+            await st.stop()
+            try? await Task.sleep(for: .seconds(1))
+            log("tracker: " + tracker.summary)
+            log("\n=== TRANSCRIPT WITH VOICES\n" + transcript.text())
+            guard Keychain.apiKey != nil else { return }
+            Prefs.participantsOverride = "Priya, product lead\nTom, engineering manager\nAisha, finance"
+            let notesUser = """
+            <people_in_this_meeting>
+            \(Prefs.participants)
+            </people_in_this_meeting>
+            <current_notes>
+            (none yet)
+            </current_notes>
+            <new_transcript>
+            \(transcript.text())
+            </new_transcript>
+            """
+            await timed("NOTES") { (try? await ClaudeClient.complete(system: Prompts.notes, user: notesUser)) ?? "" }
+            await stream("CATCH UP", system: Prompts.catchUp,
+                         user: copilot.userMessage(instruction: "Catch me up on what's happening right now.", mode: .meeting, transcript: transcript, includeNotes: false))
+            Prefs.participantsOverride = nil
+        } catch { log("diarize failed: \(error)") }
     }
 }

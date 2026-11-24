@@ -18,6 +18,7 @@ struct SettingsView: View {
     @AppStorage("summaryInterval") private var summaryInterval = 45.0
     @AppStorage("showHints") private var showHints = true
     @AppStorage("nearVoiceOnly") private var nearVoiceOnly = true
+    @AppStorage("separateVoices") private var separateVoices = true
     @AppStorage("glow") private var glow = true
     @AppStorage("SUAutomaticallyUpdate") private var autoUpdate = true
     var openWelcome: () -> Void = {}
@@ -53,10 +54,11 @@ struct SettingsView: View {
                     Text("This meeting (agenda, goals)")
                     TextEditor(text: $meetingContext).frame(height: 60).font(.body)
                 }
+                Toggle("Tell the other voices apart (Speaker A, B, C…)", isOn: $separateVoices)
                 VStack(alignment: .leading) {
                     Text("Who's in this meeting (one per line, e.g. \"Priya, product lead\")")
                     TextEditor(text: $participants).frame(height: 60).font(.body)
-                    Text("Everyone else is heard as one \"Others\" voice. Names help Claude tell them apart and know who's arguing what.")
+                    Text("Other people show up as Speaker A, B, C, told apart by voice. Names let Claude work out who's who and who's arguing what.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 LabeledContent("Update meeting notes every") {
@@ -154,9 +156,9 @@ struct TranscriptView: View {
             Text(copilot.status).font(.caption).foregroundStyle(.secondary)
             ScrollViewReader { proxy in
                 List {
-                    ForEach(transcript.lines) { l in row(l.speaker, l.text, live: false) }
+                    ForEach(transcript.lines, id: \.line.id) { l in row(l.label, me: l.line.speaker == .me, l.line.text, live: false) }
                     ForEach([Speaker.others, .me], id: \.self) { s in
-                        if let t = transcript.live[s] { row(s, t, live: true) }
+                        if let t = transcript.live[s] { row(s.rawValue, me: s == .me, t, live: true) }
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }
@@ -173,9 +175,9 @@ struct TranscriptView: View {
         .frame(minWidth: 460, minHeight: 420)
     }
 
-    private func row(_ s: Speaker, _ t: String, live: Bool) -> some View {
+    private func row(_ who: String, me: Bool, _ t: String, live: Bool) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(s.rawValue).font(.caption.bold()).foregroundStyle(s == .me ? .blue : .orange).frame(width: 50, alignment: .leading)
+            Text(who).font(.caption.bold()).foregroundStyle(me ? .blue : .orange).frame(width: 72, alignment: .leading)
             Text(t).foregroundStyle(live ? .secondary : .primary).textSelection(.enabled)
         }
     }

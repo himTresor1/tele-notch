@@ -22,7 +22,7 @@ enum Prefs {
             "fontSize": 22.0, "wpm": 140.0, "panelWidth": 600.0, "panelHeight": 190.0, "mirror": false,
             "model": "claude-opus-5-5", "mode": CopilotMode.meeting.rawValue,
             "aboutMe": "", "meetingContext": "", "participants": "", "summaryInterval": 45.0, "menuBarIcon": true,
-            "showHints": true, "glow": true, "nearVoiceOnly": true, "onboarded": false, "consentAcknowledged": false,
+            "showHints": true, "glow": true, "nearVoiceOnly": true, "separateVoices": true, "onboarded": false, "consentAcknowledged": false,
         ])
         // Versions before 0.2.3 saved a sample script; start those people with an empty one instead.
         if d.string(forKey: "script")?.hasPrefix("Paste your script here.") == true { d.removeObject(forKey: "script") }
@@ -46,6 +46,8 @@ enum Prefs {
     static var showHints: Bool { d.bool(forKey: "showHints") }
     /// Ignore voices and noise far from the mic (see VoiceGate).
     static var nearVoiceOnly: Bool { d.bool(forKey: "nearVoiceOnly") }
+    /// Tell the "Others" voices apart by sound (see SpeakerTracker).
+    static var separateVoices: Bool { d.bool(forKey: "separateVoices") }
     static var onboarded: Bool { get { d.bool(forKey: "onboarded") } set { d.set(newValue, forKey: "onboarded") } }
     static var consentAcknowledged: Bool {
         get { d.bool(forKey: "consentAcknowledged") } set { d.set(newValue, forKey: "consentAcknowledged") }
